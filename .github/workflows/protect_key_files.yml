@@ -1,0 +1,22 @@
+jobs:
+  checkFiles:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Check for forbidden file modifications
+        run: |
+          changed_files=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
+          protected_files=(
+            '.github/workflows/check_source_branch.yml' # protect check to ensure that pull requests are coming from dev
+            '.github/workflows/protect_key_files.yml'  # Protect this check from tampering as well
+          )
+
+          for file in "${protected_files[@]}"; do
+            if echo "$changed_files" | grep -qE "^$file$"; then
+              echo "Error: $file has been modified!"
+              exit 1
+            fi
+          done
+
