@@ -1,3 +1,6 @@
+on:
+  pull_request:
+
 jobs:
   checkFiles:
     runs-on: ubuntu-latest
