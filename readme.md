@@ -35,21 +35,21 @@ We use a multi-branch workflow, primarily revolving around three main branches:
 
    1.  Clone the Repository:
 
-    ```bash
+```
 
-git clone <repository_url>
+git clone  https://github.com/Qu3b411/Qu3b411.tech/
 ```
 
 2.  Switch to dev branch:
 
-```bash
+```
 
 git checkout dev
 ```
 
 3. Stay Updated: Regularly pull the latest changes from master to ensure your local environment is up-to-date:
 
-```bash
+```
 
 git pull origin master
 ```
