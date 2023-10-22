@@ -12,11 +12,16 @@ jobs:
 
       - name: Check for forbidden file modifications
         run: |
-          changed_files=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
+          base_ref=${{ github.event.pull_request.base.sha }}
+          head_ref=${{ github.event.pull_request.head.sha }}
+          changed_files=$(git diff --name-only $base_ref $head_ref)
+          
           protected_files=(
             '.github/workflows/check_source_branch.yml' # protect check to ensure that pull requests are coming from dev
             '.github/workflows/protect_key_files.yml'  # Protect this check from tampering as well
           )
+          
+          modified_protected_files=()  # Initialize the variable
 
           for file in "${protected_files[@]}"; do
             if echo "$changed_files" | grep -qE "^$file$"; then
@@ -31,4 +36,3 @@ jobs:
             done
             exit 1
           fi
-
