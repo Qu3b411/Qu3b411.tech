@@ -1,9 +1,14 @@
+on:
+  pull_request:
+
 jobs:
   checkFiles:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
+        with:
+          fetch-depth: 0 
 
       - name: Check for forbidden file modifications
         run: |
@@ -15,8 +20,15 @@ jobs:
 
           for file in "${protected_files[@]}"; do
             if echo "$changed_files" | grep -qE "^$file$"; then
-              echo "Error: $file has been modified!"
-              exit 1
+              modified_protected_files+=("$file")
             fi
           done
+
+          if [ ${#modified_protected_files[@]} -ne 0 ]; then
+            echo "Error: The following protected files have been modified:"
+            for file in "${modified_protected_files[@]}"; do
+              echo "- $file"
+            done
+            exit 1
+          fi
 
