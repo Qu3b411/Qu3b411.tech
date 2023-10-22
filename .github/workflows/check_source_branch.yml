@@ -3,7 +3,7 @@ name: Check Source Branch
 on:
   pull_request:
     branches:
-      - master
+      - "master"
 
 jobs:
   check-branch:
