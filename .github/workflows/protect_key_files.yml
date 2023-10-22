@@ -18,6 +18,8 @@ jobs:
             '.github/workflows/protect_key_files.yml'  # Protect this check from tampering as well
           )
 
+          modified_protected_files=()  # Initialize the variable
+
           for file in "${protected_files[@]}"; do
             if echo "$changed_files" | grep -qE "^$file$"; then
               modified_protected_files+=("$file")
