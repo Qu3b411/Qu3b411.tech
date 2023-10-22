@@ -3,10 +3,7 @@ name: Check Source Branch
 on:
   pull_request:
     branches:
-      - master
-    types:
-      - opened
-      - synchronize
+      - "master"
 jobs:
   check-branch:
     runs-on: ubuntu-latest
