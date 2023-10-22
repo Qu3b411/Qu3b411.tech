@@ -22,7 +22,9 @@ We use a multi-branch workflow, primarily revolving around three main branches:
 ### Workflow:
 
 **Development:** Code changes should be initiated in feature branches or directly in the dev branch.
+
 **Pull Requests:** All commits to master must come via pull requests. Pull requests to master should originate only from the pre-prod branch.
+
 **Branch Protection:** We have GitHub Actions in place that ensure pull requests to master originate only from pre-prod. Direct commits to either branch are not allowed.
 
 ### Contribution:
