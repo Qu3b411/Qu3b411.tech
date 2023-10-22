@@ -3,7 +3,7 @@ name: Check Source Branch
 on:
   pull_request:
     branches:
-      - "dev"
+      - "master"
 jobs:
   check-branch:
     runs-on: ubuntu-latest
