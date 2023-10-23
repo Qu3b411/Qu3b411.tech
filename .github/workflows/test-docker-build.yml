@@ -31,7 +31,10 @@ jobs:
       run: docker-compose -f ./Docker-compose.yml down
 
     - name: Remove Docker images associated with Docker Compose
-      run: docker rmi $(docker-compose -f ./Docker-compose.yml images -q)
+      run: images=$(docker-compose -f ./Docker-compose.yml images -q)
+        if [[ ! -z "$images" ]]; then
+          docker rmi $images
+        fi
 
     - name: Clean up dangling resources
       run: docker system prune -f
