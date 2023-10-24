@@ -1,0 +1,14 @@
+
+# Use the official Apache image from DockerHub
+FROM httpd:2.4
+
+# Create DocumentRoot directory
+RUN mkdir -p /var/www/html
+
+# Enable necessary proxy modules
+RUN sed -i 's/#LoadModule proxy_module modules\/mod_proxy.so/LoadModule proxy_module modules\/mod_proxy.so/' /usr/local/apache2/conf/httpd.conf && \
+    sed -i 's/#LoadModule proxy_http_module modules\/mod_proxy_http.so/LoadModule proxy_http_module modules\/mod_proxy_http.so/' /usr/local/apache2/conf/httpd.conf
+
+# Copy a custom configuration file to the container. This file will contain the reverse proxy settings.
+COPY ./ReverseProxy.conf /usr/local/apache2/conf/httpd.conf
+
