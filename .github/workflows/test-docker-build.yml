@@ -28,7 +28,7 @@ jobs:
       run: curl http://localhost:80
 
     - name: Stop Docker Compose services
-      run: docker-compose -f ./Docker-compose.yml down
+      run: docker-compose -f ./docker-compose.yml down
 
     - name: Remove Docker images associated with Docker Compose
       run: |
