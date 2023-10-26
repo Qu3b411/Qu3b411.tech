@@ -32,5 +32,5 @@ jobs:
 
     - name: Remove Docker images associated with Docker Compose
       run: |
-        images=$(docker-compose -f ./Docker-compose.yml images -q)
+        images=$(docker-compose -f ./docker-compose.yml images -q)
         if [[ ! -z "$images" ]]; then
