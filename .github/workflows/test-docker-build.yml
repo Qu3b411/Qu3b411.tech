@@ -25,7 +25,7 @@ jobs:
       run: sleep 20
 
     - name: Test the web service
-      run: curl http://localhost:8000
+      run: curl http://localhost:80
 
     - name: Stop Docker Compose services
       run: docker-compose -f ./Docker-compose.yml down
