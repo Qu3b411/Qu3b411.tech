@@ -19,7 +19,7 @@ jobs:
 
     - name: Build and run Docker Compose
       run: |
-        docker-compose -f ./Docker-compose.yml up -d
+        docker-compose -f ./docker-compose.yml up -d
 
     - name: Wait for a few seconds for services to start
       run: sleep 20
@@ -34,9 +34,3 @@ jobs:
       run: |
         images=$(docker-compose -f ./Docker-compose.yml images -q)
         if [[ ! -z "$images" ]]; then
-          docker rmi $images
-        fi
-
-    - name: Clean up dangling resources
-      run: docker system prune -f
-
