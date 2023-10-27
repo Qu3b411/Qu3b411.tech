@@ -9,6 +9,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      ALLOWED_HOSTS: localhost,127.0.0.1,web  
 
     steps:
     - name: Checkout repository
@@ -39,4 +41,3 @@ jobs:
 
     - name: Clean up dangling resources
       run: docker system prune -f
-
