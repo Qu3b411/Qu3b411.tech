@@ -16,18 +16,27 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v2
 
+    - name: Generate self-signed certificate
+      run: |
+        openssl req -x509 -nodes -days 365 -newkey rsa:8192 \
+          -keyout ~/cert.key -out ~/cert.pem \
+          -subj "/C=US/ST=California/L=San Francisco/O=YourCompany/OU=Org/CN=localhost"
+
     - name: Set up Docker
       uses: docker/setup-buildx-action@v1
-
+    
     - name: Build and run Docker Compose
       run: |
         docker-compose -f ./docker-compose.yml up -d
 
     - name: Wait for a few seconds for services to start
       run: sleep 20
+    
+    - name: Output Docker Compose Logs
+      run: docker-compose logs
 
     - name: Test the web service
-      run: curl http://localhost:80
+      run: curl -k https://localhost:443
 
     - name: Stop Docker Compose services
       run: docker-compose -f ./docker-compose.yml down
