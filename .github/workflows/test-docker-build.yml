@@ -9,6 +9,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      ALLOWED_HOSTS: localhost,127.0.0.1,web  
 
     steps:
     - name: Checkout repository
@@ -34,9 +36,3 @@ jobs:
       run: |
         images=$(docker-compose -f ./docker-compose.yml images -q)
         if [[ ! -z "$images" ]]; then
-         docker rmi $images
-        fi
-
-    - name: Clean up dangling resources
-      run: docker system prune -f
-
