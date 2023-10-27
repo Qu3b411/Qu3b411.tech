@@ -19,7 +19,7 @@ jobs:
     - name: Generate self-signed certificate
       run: |
         openssl req -x509 -nodes -days 365 -newkey rsa:8192 \
-          -keyout cert.key -out cert.pem \
+          -keyout ~/cert.key -out ~/cert.pem \
           -subj "/C=US/ST=California/L=San Francisco/O=YourCompany/OU=Org/CN=localhost"
 
 
