@@ -18,8 +18,8 @@ services:
       context: .
       dockerfile: Dockerfile.apache
     volumes:
-      - ~/cert.pem:/etc/ssl/certs/SSLWebCert.pem:ro
-      - ~/cert.key:/etc/ssl/private/SSLWebCert.key:ro
+      - ${CERT_PATH:-~}/cert.pem:/etc/ssl/certs/SSLWebCert.pem:ro
+      - ${CERT_PATH:-~}/cert.key:/etc/ssl/private/SSLWebCert.key:ro
     ports:
       - "80:80"
       - "443:443"
