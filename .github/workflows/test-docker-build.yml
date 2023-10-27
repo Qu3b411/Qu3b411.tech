@@ -36,7 +36,7 @@ jobs:
       run: docker-compose logs
 
     - name: Test the web service
-      run: curl -k https://localhost443
+      run: curl -k https://localhost:443
 
     - name: Stop Docker Compose services
       run: docker-compose -f ./docker-compose.yml down
