@@ -34,3 +34,19 @@ jobs:
     
     - name: Output Docker Compose Logs
       run: docker-compose logs
+
+    - name: Test the web service
+      run: curl -k https://localhost443
+
+    - name: Stop Docker Compose services
+      run: docker-compose -f ./docker-compose.yml down
+
+    - name: Remove Docker images associated with Docker Compose
+      run: |
+        images=$(docker-compose -f ./docker-compose.yml images -q)
+        if [[ ! -z "$images" ]]; then
+         docker rmi $images
+        fi
+
+    - name: Clean up dangling resources
+      run: docker system prune -f
