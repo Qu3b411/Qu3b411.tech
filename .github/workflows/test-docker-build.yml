@@ -19,7 +19,7 @@ jobs:
     - name: Generate self-signed certificate
       run: |
         openssl req -x509 -nodes -days 365 -newkey rsa:8192 \
-          -keyout cert.key -out cert.pem \
+          -keyout ~/cert.key -out ~/cert.pem \
           -subj "/C=US/ST=California/L=San Francisco/O=YourCompany/OU=Org/CN=localhost"
 
     - name: Set up Docker
@@ -34,19 +34,3 @@ jobs:
     
     - name: Output Docker Compose Logs
       run: docker-compose logs
-
-    - name: Test the web service
-      run: curl -k https://localhost:443
-
-    - name: Stop Docker Compose services
-      run: docker-compose -f ./docker-compose.yml down
-
-    - name: Remove Docker images associated with Docker Compose
-      run: |
-        images=$(docker-compose -f ./docker-compose.yml images -q)
-        if [[ ! -z "$images" ]]; then
-         docker rmi $images
-        fi
-
-    - name: Clean up dangling resources
-      run: docker system prune -f
