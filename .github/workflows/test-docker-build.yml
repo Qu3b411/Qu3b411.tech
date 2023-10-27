@@ -36,3 +36,8 @@ jobs:
       run: |
         images=$(docker-compose -f ./docker-compose.yml images -q)
         if [[ ! -z "$images" ]]; then
+         docker rmi $images
+        fi
+
+    - name: Clean up dangling resources
+      run: docker system prune -f
