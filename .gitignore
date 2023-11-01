@@ -1,2 +1,3 @@
 CommandAndControl/CommandAndControl/__pycache__/
+*__pycache__/*
 CommandAndControl/db.sqlite3
