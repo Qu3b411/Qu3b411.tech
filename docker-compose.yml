@@ -12,6 +12,7 @@ services:
 
     volumes:
       - .:/app
+      - /tmp/GitPullPipe:/tmp/GitPullPipe
     
   apache:
     build:
