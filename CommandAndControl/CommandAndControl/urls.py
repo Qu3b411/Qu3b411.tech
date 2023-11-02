@@ -21,5 +21,6 @@ from static import views
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('webhook/', include('webhook.urls')),
+    path('about/', include('static.urls')),
     path('', views.default_view, name='default_view')
 ]
