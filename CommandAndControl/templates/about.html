@@ -1,9 +1,16 @@
-{% extends "base.html" %}
+{% extends "vim.html" %}
 
 {% block title %}About - Qu3b411.tech Hacker Space{% endblock %}
 
-{% block content %}
-    <p>About The Qu3b411.tech Hacker Space!</p>
-    <!-- ... additional content ... -->
+{% block vim_title %}
+	{{ block.super }}
+	 About the Qu3b411.tech Hacker Space! 
+{% endblock %}
+
+{% block vim_content %}
+ 
+	{{ block.super }}
+	<p>This site is still under construction!</p> 
+	
 {% endblock %}
 
