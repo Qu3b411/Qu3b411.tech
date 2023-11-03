@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+
+{% block content %}	
+   	<div class="vim-terminal">
+		<div class="title-bar">
+        		<span>{% block vim_title %}{% endblock %}</span>
+        <!-- Window control buttons -->
+        		<div class="control-buttons">
+            			<span class="control-button minimize" title="Minimize"></span>
+            			<span class="control-button maximize" title="Maximize"></span>
+            			<span class="control-button close" title="Close"></span>
+        		</div>
+    		</div>
+		<div class="vim-content">
+			{% block vim_content %}{% endblock %}
+			{{ block.super }}
+		</div>
+	</div>
+{% endblock %}
+	
+
