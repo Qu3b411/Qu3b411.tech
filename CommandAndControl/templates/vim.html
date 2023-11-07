@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-
+{% load static %}
 
 {% block content %}	
    	<div class="vim-terminal">
@@ -13,7 +13,107 @@
         		</div>
     		</div>
 		<div class="vim-content">
-			{% block vim_content %}{% endblock %}
+		    <script type="module">
+			const FitAddon = window.FitAddon;
+			const fitAddon = new FitAddon.FitAddon();
+	
+			// Initialize xterm.js terminal
+			const terminal = new Terminal({
+				theme: {
+			    		background: 'rgba(0, 0, 0, 0.9)',
+			   		foreground: '#00ff00',
+					wordWrap: true
+				}
+			});
+			
+			//Const fitAddon = new window.Xterm.FitAddon();
+			terminal.loadAddon(fitAddon);
+
+			// Attach the terminal to a DOM element
+			terminal.open(document.querySelector('.vim-content'));
+			
+			fitAddon.fit();
+			window.addEventListener('resize', () => {
+	  			// Call the fit method or any other adjustments you need to make here
+	  			fitAddon.fit();
+			});
+			window.addEventListener('orientationchange', () => {
+	  			// Call the fit method or any other adjustments you need to make here
+	  			fitAddon.fit();
+			});
+
+
+			terminal.write('Welcome to the Qu3b411.Tech Hacker Space!\r\nThis space is in its infancy, and as it expands, we will welcome CTF challenges, articles, forums, and hacker news. However, please note that this template is not yet complete. We have a long way to go before we make this space a home for all hackers!\r\n As a general rule, please hack what you are supposed to on this site and don\'t disrupt the experience for other hackers who are here to learn and grow. The general rule for fellow hackers in this space should be "don\'t be a dick." If you do find vulnerabilities, a disclosure page (yet to be made) will be available. We kindly ask that you report any vulnerabilities you discover so they can be promptly addressed. Thank you for your understanding!\r\n\r\nuser@qu3b411.tech / $ ');
+			let commandBuffer = '';
+			let commandHistory = [];
+			let historyIndex = -1; // Start with -1 which means no history item is selected
+
+			terminal.onData(data => {
+			    // Handle special keys
+			    switch (data) {
+				case '\u007F': // Handle backspace (could be different depending on the system)
+				    if (commandBuffer.length > 0) {
+					commandBuffer = commandBuffer.slice(0, -1);
+					terminal.write('\b \b'); // Move cursor back, blank out character, move back again
+				    }
+				    break;
+				case '\r': // Enter
+				case '\n': // Depending on the system it could be just '\r'
+				    // Process the command if there is one
+				    if (commandBuffer.trim().length > 0) {
+					processCommand(commandBuffer);
+					// Add the command to the history and reset the index
+					commandHistory.push(commandBuffer);
+					historyIndex = -1;
+				    }
+				    // Clear the buffer
+				    commandBuffer = '';
+				    terminal.write('\r\nuser@qu3b411.tech / $ '); // Move to the beginning of the next line
+				    break;
+				case '\u001B[A': // Up arrow
+				    if (historyIndex < commandHistory.length - 1) {
+					historyIndex++;
+					// Clear the current line and display the command from history
+					clearCommandLine();
+			    		
+					commandBuffer = commandHistory[commandHistory.length - 1 - historyIndex];
+					terminal.write('user@qu3b411.tech / $ ')
+			    		terminal.write(commandBuffer);
+				    }
+				    break;
+				case '\u001B[B': // Down arrow
+				    if (historyIndex > 0) {
+					historyIndex--;
+					// Clear the current line and display the command from history
+					clearCommandLine();
+					commandBuffer = commandHistory[commandHistory.length - 1 - historyIndex];
+					terminal.write('user@qu3b411.tech / $ ')	
+					terminal.write(commandBuffer);
+				    } else if (historyIndex === 0) {
+					// Clear the buffer and command line if the down arrow moves below the first history item
+					historyIndex = -1;
+					clearCommandLine();
+					terminal.write('user@qu3b411.tech / $ ');
+					commandBuffer = '';
+				    }
+				    break;
+				default: // Other characters
+				    commandBuffer += data;
+				    terminal.write(data);
+			    }
+			});
+
+			function processCommand(command) {
+			    // Process the command...
+			    console.log('Processing command:', command);
+			}
+
+			function clearCommandLine() {
+			    // Clear the line: move to the beginning, write spaces over the line, then move back to the beginning
+			    terminal.write('\r\x1b[K');
+			}
+
+		    </script>
 			{{ block.super }}
 		</div>
 	</div>
