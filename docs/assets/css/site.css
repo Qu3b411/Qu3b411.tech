@@ -1,0 +1,303 @@
+/* General site styling */
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: monospace;
+  /* Use the Hacker Space background image on the entire page */
+  background-image: url('../images/content.png');
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center center;
+  color: #cfcfcf;
+  position: relative;
+}
+
+#app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+header#header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 1rem;
+  /* Set the header image as a repeating horizontal strip */
+  background-image: url('../images/header.png');
+  background-repeat: repeat-x;
+  background-size: contain;
+  min-height: 60px;
+}
+
+header .header-logo {
+  width: 50px;
+  height: 50px;
+  margin-right: 1rem;
+}
+
+header .right-header-links {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+header .header-btn,
+header #postsDropdown {
+  margin: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: #cfcfcf;
+  border: 1px solid #333;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-weight: bold;
+}
+
+header #postsDropdown {
+  appearance: none;
+  -moz-appearance: none;
+  -webkit-appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, #cfcfcf 50%), linear-gradient(135deg, #cfcfcf 50%, transparent 50%);
+  background-position: calc(100% - 20px) calc(1em + 2px), calc(100% - 15px) calc(1em + 2px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 2rem;
+}
+
+header #postsDropdownContainer {
+  flex: none;
+}
+
+#main {
+  flex: 1;
+  position: relative;
+  padding: 1rem;
+}
+
+/* Terminal styling */
+#terminal {
+  /* Semi-transparent dark panel over the hacker space image */
+  --term-panel: rgba(0, 0, 0, 0.55);
+  --term-panel-weak: rgba(0, 0, 0, 0.745);
+
+  background-color: var(--term-panel);
+  backdrop-filter:blur(6px);
+  border: 3px solid transparent;
+  border-radius: 8px;
+  overflow: hidden;
+  height: 70vh;
+  max-width: 90vw;
+  margin: 0 auto;
+  box-sizing: border-box;
+  animation: rgb-border 5s linear infinite;
+  display: flex;
+  flex-direction: column;
+}
+/* Make normal terminal view match editor panel */
+#term-container {
+ 
+}
+
+/* xterm internals sometimes render on transparent layers */
+#term-container .xterm,
+#term-container .xterm-viewport,
+#term-container .xterm-screen {
+  background: transparent !important; /* let container show through */
+}
+
+/* If you want the same padding feel as editor */
+#term-container {
+  padding: 0.5rem;
+  box-sizing: border-box;
+}
+
+/* The inner surface that holds both the xterm view and editor surfaces.
+   It must be positioned relative so that its children can be absolutely
+   positioned to occupy the same viewport. */
+#terminalSurface {
+  position: relative;
+  flex: 1;
+}
+
+/* Both the terminal container and editor surface are absolutely positioned
+   within the terminalSurface so that they occupy the exact same space.
+   They will be toggled via CSS classes and the hidden attribute. */
+#terminalSurface #term-container,
+#terminalSurface #editor-surface {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* By default the editor surface is hidden. When the terminal has
+   .editor-active, we force-hide the term-container and show the
+   editor-surface. */
+#terminal #editor-surface {
+  display: none;
+}
+
+/* When an editor is active, force-hide xterm and force-show the editor surface.
+   This avoids any hidden-attribute edge cases and guarantees full-viewport replacement. */
+#terminal.editor-active #term-container {
+  display: none !important;
+}
+
+#terminal.editor-active #editor-surface {
+  display: flex !important;
+}
+
+/* Terminal header (window control bar) */
+.term-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  background-color: var(--term-panel-weak);
+border-bottom: 1px solid #444;
+}
+
+.window-btn {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+.window-btn.close {
+  background-color: #ff5f56;
+}
+.window-btn.minimize {
+  background-color: #ffbd2e;
+}
+.window-btn.maximize {
+  background-color: #27c93f;
+}
+
+/* Container where xterm attaches */
+#term-container {
+  /* Take up the full viewport of the terminal surface. Positioning
+     will be set by the parent (#terminalSurface) so that xterm and
+     editor surfaces can swap in-place. */
+  padding: 0.5rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Make the xterm terminal fill its container */
+#term-container .xterm {
+  flex: 1;
+  height: 100%;
+}
+
+@keyframes rgb-border {
+  0% { border-color: #ff0000; }
+  25% { border-color: #00ff00; }
+  50% { border-color: #0000ff; }
+  75% { border-color: #ffff00; }
+  100% { border-color: #ff0000; }
+}
+
+.prompt-line {
+  display: flex;
+  align-items: center;
+  margin-top: 0.25rem;
+}
+
+#promptPrefix {
+  margin-right: 0.25rem;
+}
+
+#terminalInput {
+  flex: 1;
+  background-color: transparent;
+  border: none;
+  outline: none;
+  color: inherit;
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+.terminal-output div {
+  white-space: pre-wrap;
+}
+
+/* View overlay styling */
+/* In-terminal editor surface styling */
+
+/* Individual editor views within the editor surface */
+.editor-view {
+  display: none;
+}
+
+/* Individual editor views within the editor surface */
+.editor-view:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+/* Header styling for editor modes */
+.editor-view .view-header {
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+}
+
+/* Hint styling for editor modes */
+.editor-view .view-hint {
+  font-size: 0.8rem;
+  margin-left: 0.5rem;
+  color: #888;
+}
+
+/* Content area for editor modes */
+.editor-view .view-content {
+  white-space: pre-wrap;
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* Nano bottom command bar */
+.nano-bottom-bar {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  margin-top: 1rem;
+  padding: 0.35rem 0.5rem;
+  background-color: var(--term-panel-weak);
+border-top: 1px solid #444;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: center;
+  font-size: 0.75rem;
+  color: #cfcfcf;
+}
+
+/* Footer styling */
+footer#footer {
+  width: 100%;
+  background-color: rgba(0, 0, 0, 0.85);
+  color: #cfcfcf;
+  padding: 0.5rem 1rem;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  text-align: center;
+  font-size: 0.8rem;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}

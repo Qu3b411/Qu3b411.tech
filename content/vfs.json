@@ -1,0 +1,9 @@
+{
+  "root": {
+    "type": "dir",
+    "children": {
+      "blog": { "type": "dir" },
+      "about.md": { "type": "file", "source": "about.md" }
+    }
+  }
+}

@@ -1,0 +1,18 @@
+[
+  {
+    "id": "welcome",
+    "title": "Welcome",
+    "file": "welcome.md",
+    "path": "blog/welcome.md",
+    "date": "2025-01-01",
+    "summary": "Welcome to the terminal blog"
+  },
+  {
+    "id": "terminal_tricks",
+    "title": "Terminal Tricks",
+    "file": "terminal_tricks.md",
+    "path": "blog/terminal_tricks.md",
+    "date": "2025-01-02",
+    "summary": "Learn some terminal tricks"
+  }
+]

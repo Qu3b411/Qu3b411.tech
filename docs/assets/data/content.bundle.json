@@ -1,0 +1,42 @@
+{
+  "aboutMd": "# About This Blog\n\nWelcome to the Terminal Blog! This site demonstrates a simple interactive blog\nthat mimics a Unix shell. Navigate through posts using either the terminal\ncommands or the UI controls. The terminal supports basic commands such as\n`ls`, `cd`, `cat`, `vim`, and `nano`. Enjoy exploring!",
+  "posts": [
+    {
+      "id": "welcome",
+      "title": "Welcome",
+      "file": "welcome.md",
+      "path": "blog/welcome.md",
+      "date": "2025-01-01",
+      "summary": "Welcome to the terminal blog"
+    },
+    {
+      "id": "terminal_tricks",
+      "title": "Terminal Tricks",
+      "file": "terminal_tricks.md",
+      "path": "blog/terminal_tricks.md",
+      "date": "2025-01-02",
+      "summary": "Learn some terminal tricks"
+    }
+  ],
+  "vfs": {
+    "root": {
+      "type": "dir",
+      "children": {
+        "blog": {
+          "type": "dir"
+        },
+        "about.md": {
+          "type": "file",
+          "source": "about.md"
+        }
+      }
+    }
+  },
+  "postMarkdownByVirtualPath": {
+    "blog/welcome.md": "# Welcome\n\nWelcome to the terminal blog. This is the first post. Here is what you can do:\n\n- Use the `help` command to see available commands.\n- Use `ls` to list files.\n- Use `cd` to change directories.\n- Use `cat` to read a file.\n- Use `vim` and `nano` to view files in rich modes.\n\nEnjoy your stay!",
+    "blog/terminal_tricks.md": "# Terminal Tricks\n\nIn this post, we share some handy terminal tricks:\n\n1. Use `Ctrl+R` to search your command history.\n2. Use pipes `|` to combine commands (not available in this demo).\n3. Use wildcard patterns like `*.md` to match files (also not available here).\n\nYou can view this post in a rich mode using `vim` or `nano` commands."
+  },
+  "images": [
+    ".keep"
+  ]
+}

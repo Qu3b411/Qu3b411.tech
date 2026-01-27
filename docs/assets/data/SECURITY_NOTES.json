@@ -1,0 +1,3 @@
+{
+  "notes": "Sanitization removes <script> tags, event attributes and javascript: URIs. Inline styles are stripped where possible."
+}

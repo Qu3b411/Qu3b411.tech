@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Terminal Blog</title>
+    <!-- Main site CSS -->
+    <link rel="stylesheet" href="assets/css/site.css" />
+    <link rel="stylesheet" href="assets/css/terminal.css" />
+    <!-- Include xterm.js CSS for interactive terminal -->
+    <link rel="stylesheet" href="assets/xterm/xterm.css" />
+  </head>
+  <body>
+    <!-- BEGIN BODY PLACEHOLDER -->
+    {{BODY}}
+    <!-- END BODY PLACEHOLDER -->
+    <!-- Data bundle and runtime scripts -->
+    <!-- Use ES modules; app.js imports other modules -->
+    <!-- Load xterm.js library before our module scripts -->
+    <script src="assets/xterm/xterm.js"></script>
+    <script type="module" src="assets/js/app.js"></script>
+  </body>
+</html>

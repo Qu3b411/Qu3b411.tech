@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Terminal Blog</title>
+    <!-- Main site CSS -->
+    <link rel="stylesheet" href="assets/css/site.css" />
+    <link rel="stylesheet" href="assets/css/terminal.css" />
+    <!-- Include xterm.js CSS for interactive terminal -->
+    <link rel="stylesheet" href="assets/xterm/xterm.css" />
+  </head>
+  <body>
+    <!-- BEGIN BODY PLACEHOLDER -->
+    <div id="app-container">
+  <header id="header">
+    <!-- Logo on left -->
+    <img src="assets/images/ProfilePicture.png" alt="Logo" class="header-logo" />
+    <!-- Right side controls -->
+    <div class="right-header-links">
+      <button id="aboutBtn" class="header-btn">About</button>
+      <div id="postsDropdownContainer">
+        <label for="postsDropdown" class="visually-hidden">Scroll Posts</label>
+        <select id="postsDropdown">
+          <option value="" disabled selected>Scroll Posts</option>
+        </select>
+      </div>
+    </div>
+  </header>
+  <main id="main">
+    <div id="terminal" class="terminal-shell">
+      <!-- Terminal header with window control buttons -->
+      <div class="term-header">
+        <span class="window-btn close"></span>
+        <span class="window-btn minimize"></span>
+        <span class="window-btn maximize"></span>
+      </div>
+      <!-- Inner surface holds both the terminal view and editor surfaces. It is positioned relative so that
+           child views can fill the same viewport. -->
+      <div id="terminalSurface" class="term-surface">
+        <!-- Container where xterm.js will attach -->
+        <div id="term-container" class="term-container"></div>
+        <!-- Editor surface that replaces the xterm view when in editor modes -->
+        <div id="editor-surface" hidden tabindex="0" role="application" aria-label="Editor mode">
+          <!-- VIM in-terminal surface -->
+          <div id="vimSurface" hidden class="editor-view">
+            <div class="view-header">VIM <span class="view-hint">Press :q to exit</span></div>
+            <div id="vimContent" class="view-content"></div>
+          </div>
+          <!-- NANO in-terminal surface -->
+          <div id="nanoSurface" hidden class="editor-view">
+            <div class="view-header">NANO <span class="view-hint">Press Ctrl+X to exit</span></div>
+            <div id="nanoContent" class="view-content"></div>
+            <div class="nano-bottom-bar" aria-hidden="true">
+              <span>^G Get Help</span>
+              <span>^O Write Out</span>
+              <span>^W Where Is</span>
+              <span>^K Cut Text</span>
+              <span>^U Uncut Text</span>
+              <span>^X Exit</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+  <footer id="footer">
+    &copy; 2026 qu3b411.tech
+  </footer>
+</div>
+    <!-- END BODY PLACEHOLDER -->
+    <!-- Data bundle and runtime scripts -->
+    <!-- Use ES modules; app.js imports other modules -->
+    <!-- Load xterm.js library before our module scripts -->
+    <script src="assets/xterm/xterm.js"></script>
+    <script type="module" src="assets/js/app.js"></script>
+  </body>
+</html>
