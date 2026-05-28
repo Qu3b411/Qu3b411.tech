@@ -12,6 +12,7 @@ body {
   background-position: center center;
   color: #cfcfcf;
   position: relative;
+  overflow-x: hidden;
 }
 
 #app-container {
@@ -109,6 +110,8 @@ header #postsDropdownContainer {
 #terminalSurface {
   position: relative;
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
 /* Both the terminal container and editor surface are absolutely positioned
@@ -120,6 +123,7 @@ header #postsDropdownContainer {
   inset: 0;
   width: 100%;
   height: 100%;
+  box-sizing: border-box;
 }
 
 /* By default the editor surface is hidden. When the terminal has
@@ -179,7 +183,17 @@ header #postsDropdownContainer {
 /* Make the xterm terminal fill its container */
 #term-container .xterm {
   flex: 1;
+  width: 100%;
+  min-width: 0;
   height: 100%;
+}
+
+#term-container .xterm-viewport {
+  /* xterm.css uses overflow-y: scroll, which shows a scrollbar even at the
+     initial prompt. Use auto so the terminal never shows a duplicate or
+     unnecessary scrollbar when there is no scrollback to display. */
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
 }
 
 @keyframes rgb-border {
@@ -295,6 +309,7 @@ header #postsDropdownContainer {
 /* Footer styling */
 footer#footer {
   width: 100%;
+  box-sizing: border-box;
   background-color: rgba(0, 0, 0, 0.85);
   color: #cfcfcf;
   padding: 0.5rem 1rem;

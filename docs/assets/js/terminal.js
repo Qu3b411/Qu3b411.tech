@@ -38,6 +38,9 @@ export class Terminal {
       convertEol: true
     });
     this.term.open(this.containerEl);
+    // Keep rendered terminal glyphs green even if xterm falls back from themed
+    // canvas rendering to DOM-rendered rows.
+    this.term.write('\x1b[38;2;0;255;0m');
     // Focus the terminal on init so that user can start typing immediately
     if (typeof this.term.focus === 'function') {
       this.term.focus();
