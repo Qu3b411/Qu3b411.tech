@@ -2,7 +2,15 @@
 // This module exports a Terminal class that manages command parsing,
 // virtual filesystem navigation and printing to the terminal output.
 
-import { sanitizeHtml } from './sanitize.js';
+function stripTerminalControls(value) {
+  return String(value)
+    .replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1B\\))/g, '')
+    .replace(/[\x00-\x1F\x7F]/g, '');
+}
+
+function isPrintableInput(data) {
+  return !/[\x00-\x1F\x7F\x1B]/.test(data);
+}
 
 // Terminal shell using xterm.js for interactive display.
 // This class implements a Unix-like shell with support for ls, cd, cat, vim, nano, clear and help.
@@ -48,7 +56,7 @@ export class Terminal {
 
   // Print a line to the terminal
   printLine(text) {
-    this.term.write(`\r\n${text}`);
+    this.term.write(`\r\n${stripTerminalControls(text)}`);
   }
 
   // Handle input from xterm
@@ -88,7 +96,7 @@ export class Terminal {
           // Clear current line
           this.clearLine();
           this.commandBuffer = histCmd;
-          this.term.write(histCmd);
+          this.term.write(stripTerminalControls(histCmd));
         }
         break;
       case '\u001b[B': // Down arrow
@@ -98,7 +106,7 @@ export class Terminal {
             const histCmd = this.history[this.historyIndex];
             this.clearLine();
             this.commandBuffer = histCmd;
-            this.term.write(histCmd);
+            this.term.write(stripTerminalControls(histCmd));
           } else if (this.historyIndex === 0) {
             this.historyIndex = -1;
             this.clearLine();
@@ -107,9 +115,11 @@ export class Terminal {
         }
         break;
       default:
-        // Normal character; append to buffer and echo
+        // Normal printable characters; reject terminal control sequences so
+        // pasted escape codes cannot be replayed into xterm.js.
+        if (!isPrintableInput(data)) return;
         this.commandBuffer += data;
-        this.term.write(data);
+        this.term.write(stripTerminalControls(data));
         break;
     }
   }
