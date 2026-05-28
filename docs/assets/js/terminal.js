@@ -308,7 +308,7 @@ export class Terminal {
     if (file && file.startsWith('/')) {
       const trimmed = file.replace(/^\//, '');
       if (trimmed === 'about.md') return this.bundle.aboutMd;
-      const vPath = trimmed.replace(/^blog\//, 'blog/');
+      const vPath = trimmed;
       return this.bundle.postMarkdownByVirtualPath[vPath];
     }
     return undefined;
