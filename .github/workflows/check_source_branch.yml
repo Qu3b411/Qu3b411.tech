@@ -1,5 +1,7 @@
 name: Check Source Branch
 
+permissions: {}
+
 on:
   pull_request:
     branches:
