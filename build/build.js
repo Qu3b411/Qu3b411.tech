@@ -70,7 +70,7 @@ function build() {
   fs.writeFileSync(path.join(docsDir, 'assets/data/content.bundle.json'), JSON.stringify(bundle, null, 2));
   // Create SECURITY_NOTES.json
   const securityNotes = {
-    notes: 'Sanitization removes <script> tags, event attributes and javascript: URIs. Inline styles are stripped where possible.',
+    notes: 'Markdown is rendered with DOM node creation and textContent instead of string-based HTML injection; terminal output strips control sequences; a restrictive CSP is emitted in index.html.',
   };
   fs.writeFileSync(path.join(docsDir, 'assets/data/SECURITY_NOTES.json'), JSON.stringify(securityNotes, null, 2));
 

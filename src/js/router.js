@@ -1,46 +1,103 @@
 // Router for hash-based navigation and view management.
-import { sanitizeHtml } from './sanitize.js';
 
-// Simple markdown to HTML converter for view modes. Supports headings,
-// paragraphs, inline code and image embedding. Does not implement
-// full Markdown spec but covers essential elements.
-function mdToHtml(md) {
+// Minimal markdown renderer that builds DOM nodes directly instead of creating
+// HTML strings. All markdown text is inserted with textContent and all image
+// filenames are reduced to a conservative local basename before being used in
+// attributes.
+function basenameFromMarkdownImage(src) {
+  const basename = src.trim().split('/').pop().split('?')[0].split('#')[0];
+  return /^[A-Za-z0-9._-]+$/.test(basename) ? basename : '';
+}
+
+function appendInlineCode(parent, text) {
+  const parts = text.split(/(`[^`]*`)/g);
+  parts.forEach((part) => {
+    if (!part) return;
+    if (part.startsWith('`') && part.endsWith('`')) {
+      const code = document.createElement('code');
+      code.textContent = part.slice(1, -1);
+      parent.appendChild(code);
+      return;
+    }
+    parent.appendChild(document.createTextNode(part));
+  });
+}
+
+function appendParagraphContent(parent, line) {
+  const imagePattern = /!\[[^\]]*\]\(([^)]+)\)/g;
+  let lastIndex = 0;
+  let match;
+
+  while ((match = imagePattern.exec(line)) !== null) {
+    appendInlineCode(parent, line.slice(lastIndex, match.index));
+
+    const basename = basenameFromMarkdownImage(match[1]);
+    if (basename) {
+      const image = document.createElement('img');
+      image.src = `assets/images/${basename}`;
+      image.alt = basename;
+      parent.appendChild(image);
+    } else {
+      parent.appendChild(document.createTextNode(match[0]));
+    }
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  appendInlineCode(parent, line.slice(lastIndex));
+}
+
+function markdownToFragment(md) {
+  const fragment = document.createDocumentFragment();
   const lines = md.split(/\r?\n/);
-  let html = '';
   let inCode = false;
+  let codeBlock = null;
+
   lines.forEach((line) => {
-    // fence: not implemented; treat as pre blocks
     if (/^```/.test(line)) {
       inCode = !inCode;
+      if (inCode) {
+        const pre = document.createElement('pre');
+        codeBlock = document.createElement('code');
+        pre.appendChild(codeBlock);
+        fragment.appendChild(pre);
+      } else {
+        codeBlock = null;
+      }
       return;
     }
+
     if (inCode) {
-      html += `<pre><code>${line.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</code></pre>`;
+      if (codeBlock.textContent) codeBlock.appendChild(document.createTextNode('\n'));
+      codeBlock.appendChild(document.createTextNode(line));
       return;
     }
+
+    const trimmed = line.trim();
+    if (!trimmed) return;
+
+    let element;
     if (line.startsWith('# ')) {
-      html += `<h1>${line.slice(2).trim()}</h1>`;
+      element = document.createElement('h1');
+      element.textContent = line.slice(2).trim();
     } else if (line.startsWith('## ')) {
-      html += `<h2>${line.slice(3).trim()}</h2>`;
+      element = document.createElement('h2');
+      element.textContent = line.slice(3).trim();
     } else if (line.startsWith('### ')) {
-      html += `<h3>${line.slice(4).trim()}</h3>`;
+      element = document.createElement('h3');
+      element.textContent = line.slice(4).trim();
     } else if (/^\s*- /.test(line)) {
-      // unordered list item
-      html += `<li>${line.replace(/^\s*-\s*/, '').trim()}</li>`;
-    } else if (line.trim() === '') {
-      html += '';
+      element = document.createElement('li');
+      appendParagraphContent(element, line.replace(/^\s*-\s*/, '').trim());
     } else {
-      // images and inline code in paragraphs
-      let processed = line;
-      processed = processed.replace(/!\[[^\]]*\]\(([^)]+)\)/g, (m, p1) => {
-        const base = p1.trim().split('/').pop().split('?')[0].split('#')[0];
-        return `<img src="assets/images/${base}" alt="${base}" />`;
-      });
-      processed = processed.replace(/`([^`]*)`/g, '<code>$1</code>');
-      html += `<p>${processed}</p>`;
+      element = document.createElement('p');
+      appendParagraphContent(element, line);
     }
+
+    fragment.appendChild(element);
   });
-  return html;
+
+  return fragment;
 }
 
 export class Router {
@@ -69,35 +126,31 @@ export class Router {
     this.editorSurface.hidden = true;
     this.vimSurface.hidden = true;
     this.nanoSurface.hidden = true;
-    try{
-	    this.terminal.term.focus();
-    } catch {
-	    /* no-op */
+    if (this.terminal.term && typeof this.terminal.term.focus === 'function') {
+      this.terminal.term.focus();
     }
   }
 
   // Show a specific editor mode
-  showEditor(mode, safeHtml) {
+  showEditor(mode, markdown) {
     if (this.terminalEl) this.terminalEl.classList.add('editor-active');
     this.termContainer.hidden = true;
     this.editorSurface.hidden = false;
+
+    const targetContent = mode === 'vim' ? this.vimContent : this.nanoContent;
+    targetContent.replaceChildren(markdownToFragment(markdown));
+
     if (mode === 'vim') {
       this.nanoSurface.hidden = true;
       this.vimSurface.hidden = false;
-      this.vimContent.innerHTML = safeHtml;
     } else {
       this.vimSurface.hidden = true;
       this.nanoSurface.hidden = false;
-      this.nanoContent.innerHTML = safeHtml;
     }
 
     // Give the editor surface focus so keyboard shortcuts are reliable.
     // This also helps prevent xterm from stealing focus.
-    try {
-      this.editorSurface.focus();
-    } catch {
-      /* no-op */
-    }
+    this.editorSurface.focus();
   }
 
   // Load the current hash state
@@ -135,9 +188,7 @@ export class Router {
         this.hideEditors();
         return;
       }
-      const html = mdToHtml(md);
-      const safeHtml = sanitizeHtml(html);
-      this.showEditor(mode, safeHtml);
+      this.showEditor(mode, md);
       return;
     }
     // Unknown route: just show terminal
