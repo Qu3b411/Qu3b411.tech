@@ -190,6 +190,7 @@ function scanForHttp(docsDir) {
  */
 function scanForUnpinnedCdn(docsDir) {
   const cdnDomains = ['cdn.jsdelivr.net', 'unpkg.com', 'cdnjs.cloudflare.com'];
+  const escapeRegExp = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   function walk(dir) {
     fs.readdirSync(dir, { withFileTypes: true }).forEach((ent) => {
       const full = path.join(dir, ent.name);
@@ -197,7 +198,8 @@ function scanForUnpinnedCdn(docsDir) {
       else {
         const data = fs.readFileSync(full, 'utf8');
         cdnDomains.forEach((domain) => {
-          const regex = new RegExp(`${domain}[^\"'\n]*`, 'gi');
+          const escapedDomain = escapeRegExp(domain);
+          const regex = new RegExp(`${escapedDomain}[^\"'\n]*`, 'gi');
           const matches = data.match(regex);
           if (matches) {
             matches.forEach((url) => {
