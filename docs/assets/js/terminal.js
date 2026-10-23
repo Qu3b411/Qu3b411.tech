@@ -34,10 +34,29 @@ export class Terminal {
         cursor: '#00ff00'
       },
       cursorBlink: true,
+      cursorStyle: 'block',
       scrollback: 1000,
       convertEol: true
     });
     this.term.open(this.containerEl);
+    // Size the terminal to fill its container (no FitAddon is bundled, so we
+    // compute cols/rows from the measured cell size ourselves). Done on the
+    // next frame once xterm has measured its glyph dimensions, and again
+    // whenever the container resizes (window resize, or returning from an
+    // editor view that had hidden the terminal).
+    this.fit();
+    // Re-fit whenever the layout changes: container resize (covers window
+    // resize and returning from an editor view), plus viewport zoom / mobile
+    // keyboard (visualViewport) and device rotation.
+    if (typeof window.ResizeObserver === 'function') {
+      this._resizeObserver = new window.ResizeObserver(() => this.fit());
+      this._resizeObserver.observe(this.containerEl);
+    }
+    window.addEventListener('resize', () => this.fit());
+    window.addEventListener('orientationchange', () => this.fit());
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', () => this.fit());
+    }
     // Focus the terminal on init so that user can start typing immediately
     if (typeof this.term.focus === 'function') {
       this.term.focus();
@@ -46,6 +65,55 @@ export class Terminal {
     this.printPrompt();
     // Handle input
     this.term.onData((data) => this.handleData(data));
+  }
+
+  // Pick a terminal font size for the current viewport width so text stays
+  // readable on phones without wasting space on desktop.
+  responsiveFontSize() {
+    const w = window.innerWidth || 1024;
+    if (w < 600) return 12;
+    if (w < 900) return 13;
+    return 14;
+  }
+
+  // Debounced entry point: coalesce bursts of resize events into one fit per
+  // animation frame to avoid thrashing xterm's (relatively costly) resize.
+  fit() {
+    if (this._fitScheduled) return;
+    this._fitScheduled = requestAnimationFrame(() => {
+      this._fitScheduled = null;
+      this._doFit();
+    });
+  }
+
+  // Resize the xterm grid to fill the available container space. Uses the
+  // renderer's measured cell size; guards against xterm internals being absent.
+  _doFit() {
+    try {
+      // Apply a viewport-appropriate font size first. Changing it re-measures
+      // the cell asynchronously, so defer the actual grid resize one frame to
+      // use the fresh metrics (guarded: the font now matches, so no loop).
+      const targetFont = this.responsiveFontSize();
+      if (this.term.options.fontSize !== targetFont) {
+        this.term.options.fontSize = targetFont;
+        requestAnimationFrame(() => this._doFit());
+        return;
+      }
+      const core = this.term._core;
+      const cell = core && core._renderService && core._renderService.dimensions
+        && core._renderService.dimensions.css && core._renderService.dimensions.css.cell;
+      if (!cell || !cell.width || !cell.height) return;
+      const el = this.term.element; // the .xterm element filling the container
+      if (!el || !el.clientWidth || !el.clientHeight) return;
+      const scrollbarWidth = (core.viewport && core.viewport.scrollBarWidth) || 0;
+      const cols = Math.max(2, Math.floor((el.clientWidth - scrollbarWidth) / cell.width));
+      const rows = Math.max(1, Math.floor(el.clientHeight / cell.height));
+      if (cols !== this.term.cols || rows !== this.term.rows) {
+        this.term.resize(cols, rows);
+      }
+    } catch (e) {
+      /* non-fatal: leave the terminal at its current size */
+    }
   }
 
   // Print the current prompt

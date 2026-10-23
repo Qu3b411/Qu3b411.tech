@@ -1,16 +1,22 @@
 <div id="app-container">
   <header id="header">
-    <!-- Logo on left -->
-    <img src="assets/images/ProfilePicture.png" alt="Logo" class="header-logo" />
-    <!-- Right side controls -->
-    <div class="right-header-links">
-      <button id="aboutBtn" class="header-btn">About</button>
-      <div id="postsDropdownContainer">
-        <label for="postsDropdown" class="visually-hidden">Scroll Posts</label>
-        <select id="postsDropdown">
-          <option value="" disabled selected>Scroll Posts</option>
-        </select>
-      </div>
+    <!-- Centered inner bar, width-matched to the terminal panel below -->
+    <div class="header-inner">
+      <!-- Brand: logo + name on the left -->
+      <a class="header-brand" href="#root">
+        <img src="assets/images/ProfilePicture.png" alt="qu3b411 logo" class="header-logo" />
+        <span class="brand-name">qu3b411<span class="brand-dim">.tech</span></span>
+      </a>
+      <!-- Right side controls -->
+      <nav class="right-header-links" aria-label="Site navigation">
+        <button id="aboutBtn" class="header-btn">About</button>
+        <div id="postsDropdownContainer">
+          <label for="postsDropdown" class="visually-hidden">Scroll Posts</label>
+          <select id="postsDropdown" class="header-btn">
+            <option value="" disabled selected>Scroll Posts</option>
+          </select>
+        </div>
+      </nav>
     </div>
   </header>
   <main id="main">
