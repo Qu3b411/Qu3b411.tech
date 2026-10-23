@@ -3,7 +3,7 @@
 // virtual filesystem navigation and printing to the terminal output.
 
 import { GAMES } from './games/index.js';
-import { SECRETS, tryUnlock, challengeBrief } from './secrets.js';
+import { SECRETS, tryUnlock } from './secrets.js';
 
 function stripTerminalControls(value) {
   return String(value)
@@ -339,9 +339,6 @@ export class Terminal {
         break;
       case 'unlock': // hidden: payoff — submit the recovered flag
         return this.doUnlock(args.join(' '));
-      case 'challenge': // hidden: print the RSA challenge brief
-        challengeBrief().forEach((line) => this.printLine(line));
-        break;
       case '':
         break;
       default:
@@ -401,6 +398,31 @@ export class Terminal {
     return '/' + this.cwd.join('/');
   }
 
+  // In this toy filesystem the home directory IS the root, so '~' and the
+  // literal home path both map to '/'. Returns a '/'-rooted path string.
+  expandHome(p) {
+    const s = String(p == null ? '' : p);
+    if (s === '~') return '/';
+    if (s.startsWith('~/')) return '/' + s.slice(2);
+    if (s === '/home/qu3b411' || s === '/root') return '/';
+    if (s.startsWith('/home/qu3b411/')) return '/' + s.slice('/home/qu3b411/'.length);
+    if (s.startsWith('/root/')) return '/' + s.slice('/root/'.length);
+    return s;
+  }
+
+  // Resolve a (possibly relative, possibly ~-prefixed) path to a canonical
+  // absolute key, used to look up the hidden SECRETS "files".
+  catPath(file) {
+    const s = this.expandHome(file);
+    const segs = s.startsWith('/') ? [] : this.cwd.slice();
+    for (const p of s.split('/').filter(Boolean)) {
+      if (p === '.') continue;
+      else if (p === '..') segs.pop();
+      else segs.push(p);
+    }
+    return '/' + segs.join('/');
+  }
+
   // Change directory with validation
   cd(target) {
     if (!target || target === '~') {
@@ -408,9 +430,10 @@ export class Terminal {
       if (this.onPathChange) this.onPathChange(this.cwdPath);
       return;
     }
-    const parts = target.split('/').filter((p) => p && p.length);
+    const expanded = this.expandHome(target);
+    const parts = expanded.split('/').filter((p) => p && p.length);
     let newCwd;
-    if (target.startsWith('/')) {
+    if (expanded.startsWith('/')) {
       newCwd = [];
     } else {
       newCwd = this.cwd.slice();
@@ -420,11 +443,12 @@ export class Terminal {
       if (p === '..') newCwd.pop();
       else newCwd.push(p);
     }
-    // Validate path: root, blog, or the hidden .games directory
+    // Validate path: root, blog, or the hidden .games / .ssh / .secret dirs
+    const navigable = ['blog', '.games', '.ssh', '.secret'];
     if (newCwd.length === 0) {
       // OK
-    } else if (newCwd.length === 1 && (newCwd[0] === 'blog' || newCwd[0] === '.games')) {
-      // OK ('.games' is navigable but hidden from a plain ls)
+    } else if (newCwd.length === 1 && navigable.includes(newCwd[0])) {
+      // OK (hidden dirs are navigable but not shown by a plain ls)
     } else {
       this.printLine(`cd: ${target}: No such file or directory`);
       return;
@@ -451,11 +475,12 @@ export class Terminal {
 
     const target = args.find((a) => !a.startsWith('-'));
 
-    // resolve path
+    // resolve path (handle ~ and the home path like cat/cd do)
     let path = this.cwd.slice();
     if (target) {
-      const parts = target.split('/').filter(Boolean);
-      if (target.startsWith('/')) path = [];
+      const exp = this.expandHome(target);
+      const parts = exp.split('/').filter(Boolean);
+      if (exp.startsWith('/')) path = [];
       for (const p of parts) {
         if (p === '.') continue;
         if (p === '..') path.pop();
@@ -486,8 +511,13 @@ export class Terminal {
 
     const listRoot = () => {
       if (!long) {
-        // '.games' is a hidden directory: only revealed with -a.
-        if (all) outSimple('.games', true);
+        // Dotfiles/dirs are hidden: only revealed with -a.
+        if (all) {
+          outSimple('.bash_history', false);
+          outSimple('.games', true);
+          outSimple('.secret', true);
+          outSimple('.ssh', true);
+        }
         outSimple('blog', true);
         outSimple('about.md', false);
         // join names once for simple listing
@@ -497,10 +527,27 @@ export class Terminal {
       if (all) {
         outLong(dirPerm, 2, owner, group, dirSize, '.');
         outLong(dirPerm, 4, owner, group, dirSize, '..');
+        outLong(filePerm, 1, owner, group, 420, '.bash_history');
         outLong(dirPerm, 2, owner, group, dirSize, '.games');
+        outLong(dirPerm, 2, owner, group, dirSize, '.secret');
+        outLong(dirPerm, 2, owner, group, dirSize, '.ssh');
       }
       outLong(dirPerm, 2, owner, group, dirSize, 'blog');
       outLong(filePerm, 1, owner, group, 300, 'about.md');
+    };
+
+    // Hidden directories holding the buried puzzle.
+    const listDir = (entries) => {
+      if (!long) {
+        entries.forEach(([n]) => outSimple(n, false));
+        this.printLine(names.join(' '));
+        return;
+      }
+      if (all) {
+        outLong(dirPerm, 2, owner, group, dirSize, '.');
+        outLong(dirPerm, 4, owner, group, dirSize, '..');
+      }
+      entries.forEach(([n, sz]) => outLong(filePerm, 1, owner, group, sz, n));
     };
 
     const listGames = () => {
@@ -548,6 +595,14 @@ export class Terminal {
     }
     if (pathStr === '/.games') {
       listGames();
+      return;
+    }
+    if (pathStr === '/.ssh') {
+      listDir([['id_rsa.pub', 560], ['id_rsa.old.pub', 560]]);
+      return;
+    }
+    if (pathStr === '/.secret') {
+      listDir([['flag.enc', 260]]);
       return;
     }
     this.printLine(`ls: cannot access '${target || pathStr}': No such file or directory`);
@@ -600,9 +655,11 @@ export class Terminal {
       this.printLine('cat: missing operand');
       return;
     }
-    // Easter-egg "files" (/etc/passwd & friends) with the hidden puzzle.
-    if (SECRETS[file]) {
-      SECRETS[file].forEach((line) => this.printLine(line));
+    // Easter-egg "files" (/etc/passwd, ~/.ssh keys, the buried puzzle, &c.),
+    // resolved to a canonical path so relative / ~ spellings all work.
+    const secretKey = this.catPath(file);
+    if (SECRETS[secretKey]) {
+      SECRETS[secretKey].forEach((line) => this.printLine(line));
       return;
     }
     const md = this.getMarkdownForFile(file);

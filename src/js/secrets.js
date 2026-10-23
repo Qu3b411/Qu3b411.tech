@@ -1,70 +1,64 @@
-// secrets.js — easter-egg "filesystem" + the real puzzle: broken RSA params.
+// secrets.js — the hidden "filesystem" behind the terminal. No command here
+// announces itself as a puzzle. It is meant to look like an ordinary, slightly
+// messy box until someone pokes around (`ls -la`, read the shell history) and
+// realizes the junk lying around is a crypto challenge.
 //
-// Surface layer: `cat /etc/passwd` returns canned text and a base64->rot13->hex
-// breadcrumb that just points you at the `challenge` command. That part is a
-// warm-up. The actual lock is a textbook-RSA parameter flaw.
-//
-// The sin: the app's RSA key and the SSH key sitting in ~/.ssh were generated
-// on the same box with lousy entropy, so they SHARE a prime factor. Everything
-// shipped here is public by definition — two moduli, a public exponent, one
-// ciphertext. There is no private key anywhere in this bundle, so grepping gets
-// you nothing. gcd(n_app, n_ssh) hands you the shared prime, which factors the
-// app modulus, which gives you d, which decrypts the flag. ("Mining your Ps and
-// Qs", for real.) The flag is NOT stored in cleartext here — only a SHA-256 of
-// it — so you have to actually run the attack.
+// The buried puzzle: two RSA public keys in ~/.ssh were generated on a freshly
+// provisioned VM with almost no entropy, so they SHARE a prime factor. The flag
+// was "encrypted" with hand-rolled textbook RSA (pow(m, e, n), no padding) and
+// left in ~/.secret/flag.enc. Everything here is public by definition — two
+// public keys and a ciphertext — so there is no private key to grep. The move
+// is gcd(n1, n2): the shared prime factors the modulus, which gives d, which
+// decrypts the flag. ("Mining your Ps and Qs", on actual ssh keys.) The flag is
+// not stored in cleartext anywhere, only a SHA-256 of it. `unlock <flag>` flips
+// a cosmetic root prompt.
 
 export const SECRETS = {
+  // Looks like a boring, real passwd. It is. The trail is not here.
   '/etc/passwd': [
     'root:x:0:0:root:/root:/bin/bash',
     'daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin',
     'bin:x:2:2:bin:/bin:/usr/sbin/nologin',
     'sys:x:3:3:sys:/dev:/usr/sbin/nologin',
+    'sshd:x:110:65534::/run/sshd:/usr/sbin/nologin',
     'qu3b411:x:1000:1000:,,,:/home/qu3b411:/bin/zsh',
     'guest:x:1001:1001:,,,:/home/guest:/usr/sbin/nologin',
     'nobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin',
-    '',
-    "# you cat'd /etc/passwd on a static site. bold. nothing crackable here.",
-    '# ...except whatever someone fat-fingered into this comment. good luck.',
-    '# NzQ2ODY1MjA3MjY1NjE2cDIwNnA2czYzNm8yMDY5NzMyMDc0NjU3ODc0NjI2czZzNm8yMDcyNzM2MTJyMjA3Mjc1NnIzbjIwNjM2ODYxNnA2cDY1NnI2NzY1',
   ],
   '/etc/shadow': [
     'root:!:19876:0:99999:7:::',
     'qu3b411:$6$rounds=656000$[redacted, nice try]:19876:0:99999:7:::',
-    '',
-    '# shadow, really? nothing crackable here. the trail starts in /etc/passwd.',
+    'cat: /etc/shadow: Permission denied',
   ],
-  '~/.bash_history': [
+  // The shell history is the real trail: what the owner did on this box.
+  '/.bash_history': [
     'ls -la',
-    'cd .games',
-    './snake.js',
-    'cd /',
-    'cat /etc/passwd',
-    'challenge',
-    'cat ~/.ssh/id_rsa.pub',
-    '# ...you are literally retracing someone else\'s steps. keep going.',
+    'cd .games && ./snake.js',
+    'cd ~',
+    '# spun up a throwaway vm, needed ssh keys in a hurry',
+    "ssh-keygen -t rsa -b 1024 -f ~/.ssh/id_rsa -N ''",
+    '# meh, rotated it. (same box, same dead /dev/random, who cares)',
+    "ssh-keygen -t rsa -b 1024 -f ~/.ssh/id_rsa.old -N ''",
+    '# hid the flag where nobody looks. rolled my own rsa, padding is for cowards',
+    'python3 -c "m=int.from_bytes(open(\'flag.txt\',\'rb\').read(),\'big\'); print(hex(pow(m, 65537, N)))" > ~/.secret/flag.enc',
+    'rm -f flag.txt',
+    'history -c   # (this obviously did not work, you are reading it)',
   ],
-  // Blob #2: a stray SSH public key "left on the same box". Its modulus shares
-  // a prime with the challenge modulus. Parse out n (ssh-rsa wire format) and
-  // gcd it against the app modulus.
-  '~/.ssh/id_rsa.pub': [
-    'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAAgQCjQDXMsQhYd3eLZeFw9511rqZKr2j9JTHpnjSE06EPfkq+2z3+S88nEOyY2avWMdeZdf83zRrUttFG2rUYmRQj7lI9sS3zHJWSFVIMqOMk/0feJJ/UVM68uJFMHIJsT8uQ6MTO7rzTYcyAE/uq1b5cLWH/aSz+EZYob9Q/sCbU6w== qu3b411@terminal',
+  // Two public keys. They look independent. They are not.
+  '/.ssh/id_rsa.pub': [
+    'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAAgQCYCyYqsR1RWYNi5fxnAfSWQCtEVLnfEoL61HOl9MrLuqaMm/bOvdL9yLQYjJfZSGv5rbhbN8pYrA+x4YKX65vSa9g8UOCM/yuoAyG5sA4OMy88FQJGcVQbp4zwssKq/oED4JKAmo0l2ieskEP4GWNnuVWsHM5nU8PAeewZrpMJIQ== qu3b411@vm',
   ],
-};
-// Common aliases people type.
-SECRETS['/home/qu3b411/.bash_history'] = SECRETS['~/.bash_history'];
-SECRETS['/home/qu3b411/.ssh/id_rsa.pub'] = SECRETS['~/.ssh/id_rsa.pub'];
-
-// --- The challenge (all public parameters) ----------------------------------
-// Textbook RSA (no padding). n is the app modulus; it shares a prime with the
-// ssh key's modulus. The plaintext is the flag.
-export const CHALLENGE = {
-  e: '65537',
-  nHex: 'c45622b7ba04450eb4d03acd6cd96019d46f25daddc3d276d909bbd59ab43eabcc1678f55fbc3c638097a2774dad554c66827c90f394203873270d946e29f312a09f54c96d02f6c12495e54e8e82363a88be399fdd85af9b98e082c3e115fdccec7f00b76632d26fb490b58514538dd223075d9df533399a36b09edda0df4043',
-  ctHex: '1f6b3f70ada24895b7705bc8d9548fff5f88e50c383627874d87076ab8b4309371b1b541b77a62224a8ce379abfbb46c002106fb7ad3902797cf0d98deebf1991928085260d4864be5763a8ca19c1571c472957935cc45ae9946d063cb675c389b379bd4e574742eb6cb4622c597252cd96d948cbd9acdc1549ded7f65bd6b7d',
+  '/.ssh/id_rsa.old.pub': [
+    'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAAgQDBxJvrnPHEHNU+AXAWZqSsZY8f8dpGvm/PjwXM+Xqq9oYacBWtbVQOECWvY1SwyXhFN7qm87w52SgQOmQ/1eshQ6BqWRFi/Wg6efw+iraxSYhf1OFG30KBb7nSek6n1cpAjeCK5OSf4SjhSVbllqm3uatCY2II16qFRx22sp9i/Q== qu3b411@vm',
+  ],
+  // The ciphertext: hex of pow(flag, 65537, n_of_id_rsa.pub). Textbook, no pad.
+  '/.secret/flag.enc': [
+    '0x1ce390ff2c14d3f7b04a26e78796b2a04cc277aec552c76ea373a4a508679aeb6eafae71fab0c71d6963854abc55c56ab1979a04630d8bae9dbd9b6ee5d59f7aef14390084a7b8181af97357ee2f03bf8cfb3e11af4ecdbc1d4460187b3f127e8d80741e94438c60557d7457394afb105f04706dc2a687f16b41a969f081ce3c',
+  ],
 };
 
 // SHA-256 of the correct flag. The flag never appears here in cleartext.
-const FLAG_SHA256 = '8e034d01927e7f013e9bcd3a882ec02b510a0468b920c1ac92111b4a22458a69';
+const FLAG_SHA256 = 'deddbee3604eceb857620575aa06ad6709983d64f62748ea46feff1a4b86ebef';
 
 async function sha256Hex(str) {
   const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
@@ -77,7 +71,7 @@ export async function tryUnlock(raw) {
   if (!guess) return { message: ['unlock: usage: unlock <flag>'], rooted: false };
   const digest = await sha256Hex(guess);
   if (digest !== FLAG_SHA256) {
-    return { message: ['unlock: wrong flag. factor the modulus first.'], rooted: false };
+    return { message: ['unlock: wrong flag. keep digging.'], rooted: false };
   }
   return {
     rooted: true,
@@ -88,32 +82,9 @@ export async function tryUnlock(raw) {
       ' / /_/ / // // // / | |  ',
       ' \\____/\\___/ \\___/  |_|  ',
       '',
-      'one gcd and the whole key fell over. textbook. respect.',
+      'one gcd and the whole key fell over. two keys, one dead rng. textbook.',
       'flag accepted. you now have root. (cosmetic. purely for the vibes.)',
       '',
     ],
   };
-}
-
-// Human-readable brief for the `challenge` command.
-export function challengeBrief() {
-  return [
-    'CHALLENGE: textbook RSA, but the key is cursed.',
-    '',
-    'The flag was encrypted with this public key (no padding, straight m^e mod n):',
-    '',
-    `  e  = ${CHALLENGE.e}`,
-    `  n  = 0x${CHALLENGE.nHex}`,
-    `  ct = 0x${CHALLENGE.ctHex}`,
-    '',
-    'You do NOT have the private key, and you will not find it in this bundle.',
-    'But this key was generated on a box with garbage entropy, and it was not the',
-    'only key born there. Another public key is lying around on this machine --',
-    'the kind of place a dev leaves one. Two keys, same bad RNG... what might they',
-    'have in common?',
-    '',
-    'Recover the plaintext, then:  unlock QU3B411{...}',
-    '',
-    'no server, no private key, no padding oracle this time. pure arithmetic.',
-  ];
 }
