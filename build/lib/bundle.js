@@ -36,11 +36,16 @@ function bundleContent({ repoRoot }) {
   }
   // Hidden /.games directory: expose the real source text of each game so the
   // shell's cat/vim/nano can display it. The same files are also served as
-  // modules (copied with src/js) so they can actually run.
+  // modules (copied with src/js) so they can actually run. Every game module in
+  // src/js/games/ (except the registry index) is included automatically.
   const games = {};
-  const snakeSrc = path.join(repoRoot, 'src', 'js', 'snake.js');
-  if (fs.existsSync(snakeSrc)) {
-    games['.games/snake.js'] = fs.readFileSync(snakeSrc, 'utf8');
+  const gamesDir = path.join(repoRoot, 'src', 'js', 'games');
+  if (fs.existsSync(gamesDir)) {
+    fs.readdirSync(gamesDir)
+      .filter((f) => f.endsWith('.js') && f !== 'index.js')
+      .forEach((f) => {
+        games['.games/' + f] = fs.readFileSync(path.join(gamesDir, f), 'utf8');
+      });
   }
   return {
     aboutMd,

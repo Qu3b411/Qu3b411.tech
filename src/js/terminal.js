@@ -2,7 +2,7 @@
 // This module exports a Terminal class that manages command parsing,
 // virtual filesystem navigation and printing to the terminal output.
 
-import { runSnake } from './snake.js';
+import { GAMES } from './games/index.js';
 
 function stripTerminalControls(value) {
   return String(value)
@@ -142,7 +142,8 @@ export class Terminal {
         this.term.write('^C');
         this.printPrompt();
         break;
-      case '\r': // Enter
+      case '\r': // Enter (CR)
+      case '\n': // Enter (LF, e.g. from pasted input)
         this.term.write('\r\n');
         const cmd = this.commandBuffer.trim();
         if (cmd.length) {
@@ -252,8 +253,8 @@ export class Terminal {
     this.term.clear();
   }
 
-  // Run an executable path. Only files with the rx bit (currently just the
-  // hidden game) are runnable; anything else reports "No such file".
+  // Run an executable path. Only files with the rx bit (the hidden games) are
+  // runnable; anything else reports "No such file".
   execFile(command) {
     let p = command;
     if (p.startsWith('./')) {
@@ -262,16 +263,21 @@ export class Terminal {
     } else if (p.startsWith('/')) {
       p = p.replace(/^\/+/, '');
     }
-    if (p === '.games/snake.js') {
-      this.launchSnake();
-      return;
+    if (p.startsWith('.games/')) {
+      const name = p.slice('.games/'.length);
+      if (GAMES[name]) {
+        this.launchGame(name);
+        return;
+      }
     }
     this.printLine(`${command}: No such file or directory`);
   }
 
-  // Launch the terminal Snake game; it owns input until the player quits.
-  launchSnake() {
-    this.game = runSnake(this.term, {
+  // Launch a game by filename; it owns input until the player quits.
+  launchGame(name) {
+    const runner = GAMES[name];
+    if (!runner) return;
+    this.game = runner(this.term, {
       onExit: () => {
         this.game = null;
         this.printPrompt();
@@ -389,9 +395,10 @@ export class Terminal {
 
     const listGames = () => {
       const execPerm = '-rwxr-xr-x';
-      const snake = (this.bundle.games && this.bundle.games['.games/snake.js']) || '';
+      const games = this.bundle.games || {};
+      const files = Object.keys(games).map((k) => k.replace(/^\.games\//, '')).sort();
       if (!long) {
-        outSimple('snake.js', false);
+        files.forEach((f) => outSimple(f, false));
         this.printLine(names.join(' '));
         return;
       }
@@ -399,7 +406,7 @@ export class Terminal {
         outLong(dirPerm, 2, owner, group, dirSize, '.');
         outLong(dirPerm, 2, owner, group, dirSize, '..');
       }
-      outLong(execPerm, 1, owner, group, snake.length || 1024, 'snake.js');
+      files.forEach((f) => outLong(execPerm, 1, owner, group, (games['.games/' + f] || '').length || 1024, f));
     };
 
     const listBlog = () => {
