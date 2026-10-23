@@ -79,7 +79,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (md) {
         vimExitStage = 0;
         if (view.kind === 'about') terminal.cd('/');
-        router.showEditor('vim', md);
+        // Honor the requested editor (vim/nano); default to vim for SEO and
+        // direct URL landings, which carry no explicit editor choice.
+        router.showEditor(view.editor || 'vim', md);
         return;
       }
     }
@@ -108,8 +110,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const [route, ...rest] = h.split('/');
     const vp = rest.join('/');
     if ((route === 'vim' || route === 'nano') && vp) {
-      if (postByPath[vp]) return { kind: 'article', post: postByPath[vp] };
-      if (vp === 'about.md') return { kind: 'about' };
+      if (postByPath[vp]) return { kind: 'article', post: postByPath[vp], editor: route };
+      if (vp === 'about.md') return { kind: 'about', editor: route };
     }
     if (route === 'about') return { kind: 'about' };
     if (route === 'blog') return { kind: 'blog' };
@@ -159,8 +161,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Terminal `vim`/`nano <file>` commands.
   function openViewCallback(virtualPath, type) {
-    if (postByPath[virtualPath]) return navigate({ kind: 'article', post: postByPath[virtualPath] });
-    if (virtualPath === 'about.md') return navigate({ kind: 'about' });
+    if (postByPath[virtualPath]) return navigate({ kind: 'article', post: postByPath[virtualPath], editor: type });
+    if (virtualPath === 'about.md') return navigate({ kind: 'about', editor: type });
     // Any other file: open the editor without changing the URL.
     const md = router.getMarkdownForVirtualPath(virtualPath);
     if (md) {
