@@ -155,6 +155,9 @@ export class Terminal {
         // A launched game takes over the screen; don't draw a prompt over it.
         if (!this.game) this.printPrompt();
         break;
+      case '\t': // Tab completion
+        this.handleTab();
+        break;
       case '\u007f': // Backspace
         if (this.commandBuffer.length > 0) {
           // Remove last char
@@ -207,6 +210,90 @@ export class Terminal {
     const path = '/' + this.cwd.join('/');
     // Clear line using VT sequences: CR then clear line right
     this.term.write(`\r${path}> \x1b[K`);
+  }
+
+  // Resolve a directory fragment (e.g. '', 'blog/', '/', '../') to cwd-relative
+  // path segments, for tab completion.
+  resolveDirSegments(dirPart) {
+    const segs = dirPart.startsWith('/') ? [] : this.cwd.slice();
+    dirPart.split('/').forEach((p) => {
+      if (!p || p === '.') return;
+      if (p === '..') segs.pop();
+      else segs.push(p);
+    });
+    return segs;
+  }
+
+  // List the entries of a virtual directory: [{ name, dir }] or null if invalid.
+  entriesForPath(segs) {
+    const p = '/' + segs.join('/');
+    if (p === '/') {
+      return [
+        { name: 'blog', dir: true },
+        { name: 'about.md', dir: false },
+        { name: '.games', dir: true }, // hidden; only offered when prefix starts with '.'
+      ];
+    }
+    if (p === '/blog') return this.bundle.posts.map((po) => ({ name: po.file, dir: false }));
+    if (p === '/.games') return Object.keys(this.bundle.games || {}).map((k) => ({ name: k.replace(/^\.games\//, ''), dir: false }));
+    return null;
+  }
+
+  // Tab completion: completes command names in the first word and file/dir paths
+  // in arguments. Extends to the longest common prefix, lists on ambiguity, and
+  // hides dotfiles unless the typed prefix already starts with '.'.
+  handleTab() {
+    const buf = this.commandBuffer;
+    const tokens = buf.split(/\s+/);
+    const isCmd = tokens.length === 1;
+    const token = tokens[tokens.length - 1];
+
+    let prefix;
+    let candidates;
+    if (isCmd && !token.includes('/')) {
+      prefix = token;
+      const cmds = ['ls', 'cd', 'cat', 'vim', 'nano', 'clear', 'help'];
+      candidates = cmds.filter((c) => c.startsWith(prefix)).map((name) => ({ name, dir: false }));
+    } else {
+      const slash = token.lastIndexOf('/');
+      const dirPart = slash >= 0 ? token.slice(0, slash + 1) : '';
+      prefix = slash >= 0 ? token.slice(slash + 1) : token;
+      const entries = this.entriesForPath(this.resolveDirSegments(dirPart)) || [];
+      candidates = entries.filter(
+        (e) => e.name.startsWith(prefix) && (prefix.startsWith('.') || !e.name.startsWith('.'))
+      );
+    }
+
+    if (candidates.length === 0) {
+      this.term.write('\x07'); // bell
+      return;
+    }
+
+    if (candidates.length === 1) {
+      const c = candidates[0];
+      const add = c.name.slice(prefix.length) + (c.dir ? '/' : ' ');
+      this.commandBuffer += add;
+      this.term.write(add);
+      return;
+    }
+
+    // Multiple matches: extend to the longest common prefix, else list them.
+    const common = candidates
+      .map((c) => c.name)
+      .reduce((a, b) => {
+        let i = 0;
+        while (i < a.length && i < b.length && a[i] === b[i]) i++;
+        return a.slice(0, i);
+      });
+    if (common.length > prefix.length) {
+      const add = common.slice(prefix.length);
+      this.commandBuffer += add;
+      this.term.write(add);
+    } else {
+      const names = candidates.map((c) => c.name + (c.dir ? '/' : ''));
+      this.term.write('\r\n' + names.join('  '));
+      this.term.write(`\r\n${this.cwdPath}> ${this.commandBuffer}`);
+    }
   }
 
   // Execute a full command string
