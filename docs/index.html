@@ -7,22 +7,37 @@
          cursor styles (including the cursor blink animation) via dynamically
          created <style> elements, which a nonce/hash cannot cover. -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; img-src 'self' data:; script-src 'self'; style-src 'self' 'unsafe-inline';" />
-    <title>Terminal Blog</title>
+    <title>qu3b411.tech — terminal blog</title>
     <!-- Main site CSS -->
     <link rel="stylesheet" href="assets/css/site.css" />
     <link rel="stylesheet" href="assets/css/terminal.css" />
     <!-- Include xterm.js CSS for interactive terminal -->
     <link rel="stylesheet" href="assets/xterm/xterm.css" />
+    <!-- Article styles (shared; used by no-JS fallbacks on content pages) -->
+    <link rel="stylesheet" href="assets/css/article.css" />
+    <!-- Build-injected SEO / discoverability metadata -->
+    <meta name="description" content="A terminal-style tech blog by qu3b411 — notes, tricks, and write-ups served from an interactive in-browser shell." />
+    <meta name="author" content="qu3b411" />
+    <link rel="canonical" href="https://qu3b411.tech/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="qu3b411.tech" />
+    <meta property="og:title" content="qu3b411.tech" />
+    <meta property="og:description" content="A terminal-style tech blog by qu3b411 — notes, tricks, and write-ups served from an interactive in-browser shell." />
+    <meta property="og:url" content="https://qu3b411.tech/" />
+    <meta property="og:image" content="https://qu3b411.tech/assets/images/ProfilePicture.png" />
+    <meta name="twitter:card" content="summary" />
+    <link rel="alternate" type="application/rss+xml" title="qu3b411.tech" href="feed.xml" />
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"Blog","name":"qu3b411.tech","description":"A terminal-style tech blog by qu3b411 — notes, tricks, and write-ups served from an interactive in-browser shell.","url":"https://qu3b411.tech/","author":{"@type":"Person","name":"qu3b411"},"blogPost":[{"@type":"BlogPosting","headline":"Welcome","datePublished":"2025-01-01","url":"https://qu3b411.tech/blog/welcome/"},{"@type":"BlogPosting","headline":"Terminal Tricks","datePublished":"2025-01-02","url":"https://qu3b411.tech/blog/terminal-tricks/"}]}</script>
   </head>
-  <body>
+  <body class="page-home">
     <!-- BEGIN BODY PLACEHOLDER -->
     <div id="app-container">
   <header id="header">
     <!-- Centered inner bar, width-matched to the terminal panel below -->
     <div class="header-inner">
       <!-- Brand: logo + name on the left -->
-      <a class="header-brand" href="#root">
-        <img src="assets/images/ProfilePicture.png" alt="qu3b411 logo" class="header-logo" />
+      <a class="header-brand" href="./">
+        <img src="./assets/images/ProfilePicture.png" alt="qu3b411 logo" class="header-logo" />
         <span class="brand-name">qu3b411<span class="brand-dim">.tech</span></span>
       </a>
       <!-- Right side controls -->
@@ -75,9 +90,19 @@
     </div>
   </main>
   <footer id="footer">
-    &copy; 2026 qu3b411.tech
+    <nav class="foot-links" aria-label="Footer navigation">
+      <a href="./">Home</a>
+      <span aria-hidden="true">·</span>
+      <a href="./blog/">Blog</a>
+      <span aria-hidden="true">·</span>
+      <a href="./about/">About</a>
+      <span aria-hidden="true">·</span>
+      <a href="./feed.xml">RSS</a>
+    </nav>
+    <div class="foot-copy">&copy; 2026 qu3b411.tech</div>
   </footer>
 </div>
+
     <!-- END BODY PLACEHOLDER -->
     <!-- Data bundle and runtime scripts -->
     <!-- Use ES modules; app.js imports other modules -->

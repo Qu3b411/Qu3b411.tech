@@ -150,7 +150,16 @@ function scanForHttp(docsDir) {
 
       // Read as utf8 ONLY for text files
       const data = fs.readFileSync(full, 'utf8');
-      if (/http:\/\//i.test(data)) {
+      // XML namespace identifiers (sitemaps.org, w3.org) are REQUIRED by spec
+      // to be http:// — they are identifiers, not fetched resources, so they
+      // are not an unsecured-reference risk. Strip them before scanning.
+      const NAMESPACE_WHITELIST = [
+        'http://www.sitemaps.org/',
+        'http://www.w3.org/',
+      ];
+      let scan = data;
+      for (const ns of NAMESPACE_WHITELIST) scan = scan.split(ns).join('');
+      if (/http:\/\//i.test(scan)) {
         const err = new Error(`Unsecured http:// reference found in ${full}`);
         err.isUserError = true;
         throw err;

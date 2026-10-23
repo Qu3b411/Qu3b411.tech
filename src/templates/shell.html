@@ -3,8 +3,8 @@
     <!-- Centered inner bar, width-matched to the terminal panel below -->
     <div class="header-inner">
       <!-- Brand: logo + name on the left -->
-      <a class="header-brand" href="#root">
-        <img src="assets/images/ProfilePicture.png" alt="qu3b411 logo" class="header-logo" />
+      <a class="header-brand" href="{{PREFIX}}">
+        <img src="{{PREFIX}}assets/images/ProfilePicture.png" alt="qu3b411 logo" class="header-logo" />
         <span class="brand-name">qu3b411<span class="brand-dim">.tech</span></span>
       </a>
       <!-- Right side controls -->
@@ -57,6 +57,15 @@
     </div>
   </main>
   <footer id="footer">
-    &copy; 2026 qu3b411.tech
+    <nav class="foot-links" aria-label="Footer navigation">
+      <a href="{{PREFIX}}">Home</a>
+      <span aria-hidden="true">·</span>
+      <a href="{{PREFIX}}blog/">Blog</a>
+      <span aria-hidden="true">·</span>
+      <a href="{{PREFIX}}about/">About</a>
+      <span aria-hidden="true">·</span>
+      <a href="{{PREFIX}}feed.xml">RSS</a>
+    </nav>
+    <div class="foot-copy">&copy; 2026 qu3b411.tech</div>
   </footer>
 </div>

@@ -23,7 +23,7 @@ function appendInlineCode(parent, text) {
   });
 }
 
-function appendParagraphContent(parent, line) {
+function appendParagraphContent(parent, line, assetBase) {
   const imagePattern = /!\[[^\]]*\]\(([^)]+)\)/g;
   let lastIndex = 0;
   let match;
@@ -34,7 +34,8 @@ function appendParagraphContent(parent, line) {
     const basename = basenameFromMarkdownImage(match[1]);
     if (basename) {
       const image = document.createElement('img');
-      image.src = `assets/images/${basename}`;
+      // Resolve against the site root so images load from nested article URLs.
+      image.src = `${assetBase}assets/images/${basename}`;
       image.alt = basename;
       parent.appendChild(image);
     } else {
@@ -47,7 +48,7 @@ function appendParagraphContent(parent, line) {
   appendInlineCode(parent, line.slice(lastIndex));
 }
 
-function markdownToFragment(md) {
+function markdownToFragment(md, assetBase) {
   const fragment = document.createDocumentFragment();
   const lines = md.split(/\r?\n/);
   let inCode = false;
@@ -88,10 +89,10 @@ function markdownToFragment(md) {
       element.textContent = line.slice(4).trim();
     } else if (/^\s*- /.test(line)) {
       element = document.createElement('li');
-      appendParagraphContent(element, line.replace(/^\s*-\s*/, '').trim());
+      appendParagraphContent(element, line.replace(/^\s*-\s*/, '').trim(), assetBase);
     } else {
       element = document.createElement('p');
-      appendParagraphContent(element, line);
+      appendParagraphContent(element, line, assetBase);
     }
 
     fragment.appendChild(element);
@@ -101,7 +102,7 @@ function markdownToFragment(md) {
 }
 
 export class Router {
-  constructor({ terminal, terminalEl, termContainer, editorSurface, vimSurface, vimContent, nanoSurface, nanoContent }) {
+  constructor({ terminal, terminalEl, termContainer, editorSurface, vimSurface, vimContent, nanoSurface, nanoContent, assetBase }) {
     this.terminal = terminal;
     this.terminalEl = terminalEl;
     // DOM elements for view management
@@ -111,12 +112,10 @@ export class Router {
     this.vimContent = vimContent;
     this.nanoSurface = nanoSurface;
     this.nanoContent = nanoContent;
-
-    window.addEventListener('hashchange', () => this.loadRoute());
-  }
-
-  init() {
-    this.loadRoute();
+    // Absolute site root for resolving in-article asset URLs from nested paths.
+    this.assetBase = assetBase || '';
+    // NOTE: routing (hash + canonical pathname) is owned by app.js; this class
+    // only renders views (showEditor/hideEditors) on request.
   }
 
   // Hide editor surfaces and show terminal
@@ -138,7 +137,7 @@ export class Router {
     this.editorSurface.hidden = false;
 
     const targetContent = mode === 'vim' ? this.vimContent : this.nanoContent;
-    targetContent.replaceChildren(markdownToFragment(markdown));
+    targetContent.replaceChildren(markdownToFragment(markdown, this.assetBase));
 
     if (mode === 'vim') {
       this.nanoSurface.hidden = true;

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>qu3b411.tech</title>
+    <link>https://qu3b411.tech/</link>
+    <atom:link href="https://qu3b411.tech/feed.xml" rel="self" type="application/rss+xml" />
+    <description>A terminal-style tech blog by qu3b411 — notes, tricks, and write-ups served from an interactive in-browser shell.</description>
+    <language>en</language>
+    <lastBuildDate>Thu, 02 Jan 2025 00:00:00 GMT</lastBuildDate>
+    <item>
+      <title>Terminal Tricks</title>
+      <link>https://qu3b411.tech/blog/terminal-tricks/</link>
+      <guid isPermaLink="true">https://qu3b411.tech/blog/terminal-tricks/</guid>
+      <pubDate>Thu, 02 Jan 2025 00:00:00 GMT</pubDate>
+      <description>Learn some terminal tricks</description>
+    </item>
+    <item>
+      <title>Welcome</title>
+      <link>https://qu3b411.tech/blog/welcome/</link>
+      <guid isPermaLink="true">https://qu3b411.tech/blog/welcome/</guid>
+      <pubDate>Wed, 01 Jan 2025 00:00:00 GMT</pubDate>
+      <description>Welcome to the terminal blog</description>
+    </item>
+  </channel>
+</rss>

@@ -1,141 +1,241 @@
 // Entry point for the terminal blog UI.
+//
+// Routing model (static-first progressive enhancement):
+//  - Every content page is a real file (/, /blog/<slug>/, /about/, /blog/) whose
+//    static HTML contains a readable fallback. When this script runs it reveals
+//    the terminal and opens the requested view at the SAME canonical URL.
+//  - Canonical pathname navigation is used for published-article transitions via
+//    the History API; ordinary shell commands do not touch the URL.
+//  - Legacy #hash deep links still work and are normalized to canonical paths.
 
 import { Terminal } from './terminal.js';
 import { Router } from './router.js';
 import { populatePostsDropdown } from './blog.js';
 
-document.addEventListener('DOMContentLoaded', async () => {
-  // Fetch the content bundle
-  const bundleRes = await fetch('assets/data/content.bundle.json');
-  const bundle = await bundleRes.json();
+// app.js is served at <site-root>/assets/js/app.js, so '../../' from its own URL
+// is the site root — correct regardless of page depth or deploy sub-path.
+const ROOT = new URL('../../', import.meta.url);
+const BASE_PATH = ROOT.pathname; // '/' or e.g. '/Qu3b411.tech/'
 
-  // Get DOM elements
+document.addEventListener('DOMContentLoaded', async () => {
+  const bundle = await fetch(new URL('assets/data/content.bundle.json', ROOT)).then((r) => r.json());
+
+  // Reveal the terminal shell (content pages hide it by default so the no-JS
+  // fallback is what non-JS clients see). Done before Terminal init so xterm can
+  // measure its container.
+  document.body.classList.add('term-ready');
+
+  // DOM elements
   const terminalEl = document.getElementById('terminal');
   const termContainer = document.getElementById('term-container');
   const aboutBtn = document.getElementById('aboutBtn');
   const postsDropdown = document.getElementById('postsDropdown');
-  // Editor surfaces inside the terminal panel
   const editorSurface = document.getElementById('editor-surface');
   const vimSurface = document.getElementById('vimSurface');
   const vimContent = document.getElementById('vimContent');
   const nanoSurface = document.getElementById('nanoSurface');
   const nanoContent = document.getElementById('nanoContent');
 
-  // State variables
-  // Track overlay sessions so we can restore hash *and* cwd without terminal chatter.
-  let currentView = null; // { type: 'vim'|'nano', prevHash: string, prevCwd: string }
-  // 0 = not in exit sequence, 1 = saw ':' and waiting for 'q'
-  let vimExitStage = 0;
+  // Lookup maps (posts carry a build-assigned slug).
+  const postBySlug = {};
+  const postByPath = {};
+  bundle.posts.forEach((p) => {
+    postBySlug[p.slug] = p;
+    postByPath[p.path] = p;
+  });
 
-  // Instantiate Terminal using xterm.js
+  let vimExitStage = 0; // 0 = idle, 1 = saw ':' awaiting 'q'
+
   const terminal = new Terminal({
     containerEl: termContainer,
     bundle,
-    openViewCallback: (virtualPath, type) => {
-      // open view triggered by terminal command; update hash and store previous
-      currentView = { type, prevHash: window.location.hash || '#root', prevCwd: terminal.cwdPath };
-      if (type === 'vim') vimExitStage = 0;
-      window.location.hash = `#${type}/${virtualPath}`;
-    },
-    onPathChange: (path) => {
-      // nothing else for now
-    },
+    openViewCallback,
+    onPathChange,
   });
 
-  // Populate posts dropdown
+  const router = new Router({
+    terminal, terminalEl, termContainer,
+    editorSurface, vimSurface, vimContent, nanoSurface, nanoContent,
+    assetBase: ROOT.href,
+  });
+
   populatePostsDropdown(postsDropdown, bundle.posts);
 
-  // About button click
-  aboutBtn.addEventListener('click', () => {
-    currentView = null;
-    window.location.hash = '#about';
-  });
+  // ---- View model -----------------------------------------------------------
+  // A view is { kind: 'home'|'blog'|'about'|'article', post? }.
 
-  // Posts dropdown change
-  postsDropdown.addEventListener('change', () => {
-    const id = postsDropdown.value;
-    if (!id) return;
-    const post = bundle.posts.find((p) => p.id === id);
-    if (!post) return;
-    currentView = { type: 'vim', prevHash: window.location.hash || '#root', prevCwd: terminal.cwdPath };
-    vimExitStage = 0;
-    window.location.hash = `#vim/blog/${post.file}`;
-  });
+  function pathForView(view) {
+    if (view.kind === 'article') return `${BASE_PATH}blog/${view.post.slug}/`;
+    if (view.kind === 'about') return `${BASE_PATH}about/`;
+    if (view.kind === 'blog') return `${BASE_PATH}blog/`;
+    return BASE_PATH; // home
+  }
 
-  // Handle keydown events for exiting vim/nano view modes
-  // Capture-phase handler so xterm can't swallow the key events before we see them.
-  document.addEventListener('keydown', (e) => {
-    // VIM exits via :q (realistic) and should not print chatter.
-    if (!vimSurface.hidden) {
-      // Minimal state machine for :q
-      if (e.key === ':' && !e.ctrlKey && !e.metaKey) {
-        e.preventDefault();
-        vimExitStage = 1;
-        return;
-      }
-      if (vimExitStage === 1 && (e.key === 'q' || e.key === 'Q') && !e.ctrlKey && !e.metaKey) {
-        e.preventDefault();
-        // close editor
-        if (currentView) {
-          window.location.hash = currentView.prevHash;
-          // restore cwd exactly (router won't reset on #root/#blog)
-          terminal.cd(currentView.prevCwd);
-        } else {
-          window.location.hash = '#root';
-        }
-        currentView = null;
+  // Render a view without touching history (boot / popstate).
+  function showView(view) {
+    if (view.kind === 'article' || view.kind === 'about') {
+      const vp = view.kind === 'about' ? 'about.md' : view.post.path;
+      const md = router.getMarkdownForVirtualPath(vp);
+      if (md) {
         vimExitStage = 0;
-        // show clean prompt only
-        //terminal.printPrompt();
+        if (view.kind === 'about') terminal.cd('/');
+        router.showEditor('vim', md);
         return;
       }
-      // swallow everything else while vim is open
-      e.preventDefault();
-      e.stopPropagation();
+    }
+    if (view.kind === 'blog') {
+      router.hideEditors();
+      terminal.cd('/blog');
       return;
     }
-    // NANO exits via Ctrl+X
-    if (!nanoSurface.hidden) {
-      // Exit ONLY on Ctrl+X
-      if ((e.ctrlKey || e.metaKey) && (e.key === 'x' || e.key === 'X')) {
+    router.hideEditors(); // home
+  }
+
+  // Navigate to a view and push its canonical URL (in-app actions).
+  function navigate(view) {
+    const target = pathForView(view);
+    if (location.pathname + location.hash !== target) {
+      history.pushState({}, '', target);
+    }
+    showView(view);
+    removePrerender();
+  }
+
+  // Map a legacy #hash route to a view, or null.
+  function viewFromHash(hash) {
+    const h = (hash || '').replace(/^#/, '');
+    if (!h) return null;
+    const [route, ...rest] = h.split('/');
+    const vp = rest.join('/');
+    if ((route === 'vim' || route === 'nano') && vp) {
+      if (postByPath[vp]) return { kind: 'article', post: postByPath[vp] };
+      if (vp === 'about.md') return { kind: 'about' };
+    }
+    if (route === 'about') return { kind: 'about' };
+    if (route === 'blog') return { kind: 'blog' };
+    return null;
+  }
+
+  // Derive a view from the current location (pathname first, then legacy hash).
+  function viewFromLocation() {
+    let rel = location.pathname;
+    if (rel.startsWith(BASE_PATH)) rel = rel.slice(BASE_PATH.length);
+    rel = rel.replace(/^\/+/, '').replace(/index\.html$/, '');
+    const m = rel.match(/^blog\/([^/]+)\/?$/);
+    if (m && postBySlug[m[1]]) return { kind: 'article', post: postBySlug[m[1]] };
+    if (/^blog\/?$/.test(rel)) return { kind: 'blog' };
+    if (/^about\/?$/.test(rel)) return { kind: 'about' };
+    return viewFromHash(location.hash) || { kind: 'home' };
+  }
+
+  // Prefer the generated page's explicit signal for a deterministic boot.
+  function initialView() {
+    const dv = document.body.dataset.view;
+    const dp = document.body.dataset.path;
+    if (dv === 'vim' && dp && postByPath[dp]) return { kind: 'article', post: postByPath[dp] };
+    if (dv === 'about') return { kind: 'about' };
+    if (dv === 'blog') return { kind: 'blog' };
+    return viewFromLocation();
+  }
+
+  function removePrerender() {
+    // The Vim view preserves the full article text + semantic structure in the
+    // DOM, so the static fallback can be safely removed to leave one copy.
+    const pre = document.getElementById('prerender');
+    if (pre) pre.remove();
+  }
+
+  // ---- Boot -----------------------------------------------------------------
+  const first = initialView();
+  showView(first);
+  removePrerender();
+  // Normalize legacy hash / index.html URLs to the canonical path.
+  const canonical = pathForView(first);
+  if (location.hash || location.pathname !== canonical) {
+    history.replaceState({}, '', canonical);
+  }
+
+  // ---- Callbacks ------------------------------------------------------------
+
+  // Terminal `vim`/`nano <file>` commands.
+  function openViewCallback(virtualPath, type) {
+    if (postByPath[virtualPath]) return navigate({ kind: 'article', post: postByPath[virtualPath] });
+    if (virtualPath === 'about.md') return navigate({ kind: 'about' });
+    // Any other file: open the editor without changing the URL.
+    const md = router.getMarkdownForVirtualPath(virtualPath);
+    if (md) {
+      vimExitStage = 0;
+      router.showEditor(type, md);
+    }
+  }
+
+  function onPathChange() {
+    /* reserved */
+  }
+
+  aboutBtn.addEventListener('click', () => navigate({ kind: 'about' }));
+
+  postsDropdown.addEventListener('change', () => {
+    const id = postsDropdown.value;
+    const post = bundle.posts.find((p) => p.id === id);
+    if (post) navigate({ kind: 'article', post });
+  });
+
+  // Back/Forward and legacy hash navigation.
+  window.addEventListener('popstate', () => {
+    showView(viewFromLocation());
+    removePrerender();
+  });
+  window.addEventListener('hashchange', () => {
+    // A legacy #hash deep link takes priority, then normalizes to canonical.
+    const v = viewFromHash(location.hash) || viewFromLocation();
+    history.replaceState({}, '', pathForView(v));
+    showView(v);
+    removePrerender();
+  });
+
+  // Editor exit: Vim via :q, Nano via Ctrl+X — return to the terminal (home).
+  // Capture phase so xterm can't swallow the keys first.
+  document.addEventListener(
+    'keydown',
+    (e) => {
+      if (!vimSurface.hidden) {
+        if (e.key === ':' && !e.ctrlKey && !e.metaKey) {
+          e.preventDefault();
+          vimExitStage = 1;
+          return;
+        }
+        if (vimExitStage === 1 && (e.key === 'q' || e.key === 'Q') && !e.ctrlKey && !e.metaKey) {
+          e.preventDefault();
+          exitEditor();
+          return;
+        }
         e.preventDefault();
         e.stopPropagation();
-        if (currentView) {
-          window.location.hash = currentView.prevHash;
-          terminal.cd(currentView.prevCwd);
-        } else {
-          window.location.hash = '#root';
-        }
-        currentView = null;
-        //terminal.printPrompt();
         return;
       }
-      // While nano is open, swallow all keystrokes so xterm can't receive them.
-      e.preventDefault();
-      e.stopPropagation();
-    }
-  }, true);
+      if (!nanoSurface.hidden) {
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'x' || e.key === 'X')) {
+          e.preventDefault();
+          e.stopPropagation();
+          exitEditor();
+          return;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    },
+    true
+  );
 
-  // Focus xterm input when clicking on terminal panel
+  function exitEditor() {
+    vimExitStage = 0;
+    navigate({ kind: 'home' });
+  }
+
+  // Focus the terminal when clicking the panel (but never steal editor focus).
   terminalEl.addEventListener('click', () => {
-    // Do NOT steal focus from editor modes
     if (!editorSurface.hidden) return;
-    // xterm exposes focus() to focus the underlying textarea
-    if (terminal.term && typeof terminal.term.focus === 'function') {
-      terminal.term.focus();
-    }
+    if (terminal.term && typeof terminal.term.focus === 'function') terminal.term.focus();
   });
-
-  // Instantiate Router
-  const router = new Router({
-    terminal,
-    terminalEl,
-    termContainer,
-    editorSurface,
-    vimSurface,
-    vimContent,
-    nanoSurface,
-    nanoContent,
-  });
-  router.init();
 });

@@ -1,0 +1,179 @@
+/* Styling for the build-generated static article pages (per-post and about).
+   These are the crawlable, no-JS versions of the content; kept visually in
+   step with the terminal theme. */
+
+:root {
+  --green: #00ff00;
+  --panel: rgba(0, 0, 0, 0.72);
+  --ink: #d7ffd7;
+  --dim: #8a8a8a;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  line-height: 1.6;
+  color: var(--ink);
+  background-color: #04120a;
+  background-image: url('../images/content.png');
+  background-size: cover;
+  background-position: center center;
+  background-attachment: fixed;
+}
+
+.article {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: clamp(1rem, 4vw, 2.5rem) clamp(1rem, 4vw, 2rem) 3rem;
+}
+
+.article-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.article-nav a {
+  color: var(--green);
+  text-decoration: none;
+  font-weight: bold;
+  padding: 0.4rem 0.8rem;
+  border: 1px solid rgba(0, 255, 0, 0.35);
+  border-radius: 6px;
+  background-color: rgba(0, 0, 0, 0.5);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.article-nav a:hover,
+.article-nav a:focus-visible {
+  border-color: rgba(0, 255, 0, 0.85);
+  box-shadow: 0 0 8px rgba(0, 255, 0, 0.3);
+  outline: none;
+}
+
+article {
+  background-color: var(--panel);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(0, 255, 0, 0.25);
+  border-radius: 10px;
+  padding: clamp(1rem, 4vw, 2rem);
+}
+
+.article-date {
+  color: var(--dim);
+  margin-top: 0;
+  font-size: 0.85rem;
+}
+
+article h1,
+article h2,
+article h3 {
+  color: var(--green);
+  line-height: 1.25;
+  text-shadow: 0 0 6px rgba(0, 255, 0, 0.25);
+}
+
+article h1 {
+  font-size: clamp(1.5rem, 5vw, 2rem);
+  margin-top: 0;
+}
+
+article a {
+  color: #6cff6c;
+}
+
+article code {
+  background-color: rgba(0, 255, 0, 0.1);
+  border: 1px solid rgba(0, 255, 0, 0.2);
+  border-radius: 4px;
+  padding: 0.05em 0.35em;
+  font-size: 0.95em;
+}
+
+article pre {
+  background-color: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(0, 255, 0, 0.2);
+  border-radius: 8px;
+  padding: 1rem;
+  overflow-x: auto;
+}
+
+article pre code {
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+article img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+}
+
+article ul {
+  padding-left: 1.4rem;
+}
+
+article li {
+  margin: 0.25rem 0;
+}
+
+/* Blog index listing */
+.post-list {
+  list-style: none;
+  padding-left: 0;
+}
+
+.post-list li {
+  margin: 1rem 0;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(0, 255, 0, 0.15);
+}
+
+.post-list a {
+  font-size: 1.15rem;
+  font-weight: bold;
+}
+
+.post-date {
+  color: var(--dim);
+  margin-left: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.post-summary {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--ink);
+  opacity: 0.85;
+}
+
+.article-foot {
+  margin-top: 2rem;
+  text-align: center;
+}
+
+.article-foot a {
+  color: var(--green);
+  text-decoration: none;
+}
+
+.article-foot a:hover {
+  text-decoration: underline;
+}

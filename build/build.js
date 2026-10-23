@@ -5,6 +5,7 @@ const { readJson, validatePosts, validateVfs, assertNoMarkdownInDocs, scanForHtt
 const { bundleContent } = require('./lib/bundle');
 const { renderPage } = require('./lib/render');
 const { computeHashes } = require('./lib/hash');
+const seo = require('./lib/seo');
 
 function ensureDir(p) {
   if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true });
@@ -37,6 +38,23 @@ function build() {
 
   // Bundle content
   const bundle = bundleContent({ repoRoot });
+
+  // Resolve the deploy-time site config (SITE_URL env overrides site.json) and
+  // assign each post a stable, unique slug for its canonical URL. The slug is
+  // added to the client bundle so app.js can map pathname <-> article.
+  const site = seo.resolveSiteConfig(repoRoot);
+  const usedSlugs = new Set();
+  const slugById = {};
+  bundle.posts.forEach((p) => {
+    const base = seo.slugify(p.id) || 'post';
+    let candidate = base;
+    let n = 2;
+    while (usedSlugs.has(candidate)) candidate = `${base}-${n++}`;
+    usedSlugs.add(candidate);
+    slugById[p.id] = candidate;
+    p.slug = candidate;
+  });
+  const slugOf = (p) => slugById[p.id];
 
   // Clean docs directory
   if (fs.existsSync(docsDir)) {
@@ -74,11 +92,60 @@ function build() {
   };
   fs.writeFileSync(path.join(docsDir, 'assets/data/SECURITY_NOTES.json'), JSON.stringify(securityNotes, null, 2));
 
-  // Render index.html
+  // ---- Discoverability / SEO: generate pages, sitemap, robots, feed ----
+  // All content pages embed the same terminal shell (single source of truth)
+  // filled with a depth-correct relative asset prefix.
   const baseTemplate = path.join(srcDir, 'templates/base.html');
-  const indexBody = path.join(srcDir, 'templates/index.body.html');
-  const html = renderPage(baseTemplate, indexBody);
-  fs.writeFileSync(path.join(docsDir, 'index.html'), html);
+  const shellRaw = fs.readFileSync(path.join(srcDir, 'templates/shell.html'), 'utf8');
+  const shellFor = (prefix) => shellRaw.replace(/\{\{PREFIX\}\}/g, prefix);
+
+  // Home: the SPA shell. Terminal shows immediately; crawlable links live in the
+  // footer, the /blog/ index, and the sitemap.
+  const headExtra = seo.renderHomeHead({ site, posts: bundle.posts, slugOf });
+  fs.writeFileSync(
+    path.join(docsDir, 'index.html'),
+    renderPage(baseTemplate, null, { HEAD_EXTRA: headExtra, BODY: shellFor('./') })
+  );
+
+  // Per-post canonical pages: docs/blog/<slug>/index.html (prerendered article
+  // + terminal shell; app.js opens the article in Vim at this same URL).
+  bundle.posts.forEach((post) => {
+    const slug = slugOf(post);
+    const md = bundle.postMarkdownByVirtualPath[post.path] || '';
+    const dir = path.join(docsDir, 'blog', slug);
+    ensureDir(dir);
+    fs.writeFileSync(
+      path.join(dir, 'index.html'),
+      seo.renderArticlePage({ post, md, site, slug, prefix: '../../', shellHtml: shellFor('../../') })
+    );
+  });
+
+  // Crawlable /blog/ hub and /about/ page.
+  ensureDir(path.join(docsDir, 'blog'));
+  fs.writeFileSync(
+    path.join(docsDir, 'blog', 'index.html'),
+    seo.renderBlogIndexPage({ site, posts: bundle.posts, slugOf, prefix: '../', shellHtml: shellFor('../') })
+  );
+  ensureDir(path.join(docsDir, 'about'));
+  fs.writeFileSync(
+    path.join(docsDir, 'about', 'index.html'),
+    seo.renderAboutPage({ aboutMd: bundle.aboutMd, site, prefix: '../', shellHtml: shellFor('../') })
+  );
+
+  // 404 page (GitHub Pages serves this for unknown paths).
+  fs.writeFileSync(path.join(docsDir, '404.html'), seo.render404Page({ site }));
+
+  // sitemap.xml, robots.txt, RSS feed.xml at the site root.
+  fs.writeFileSync(path.join(docsDir, 'sitemap.xml'), seo.renderSitemap({ site, posts: bundle.posts, slugOf }));
+  fs.writeFileSync(path.join(docsDir, 'robots.txt'), seo.renderRobots({ site }));
+  fs.writeFileSync(path.join(docsDir, 'feed.xml'), seo.renderFeed({ site, posts: bundle.posts, slugOf }));
+
+  // CNAME for a custom domain (skip for *.github.io default hosting).
+  const host = site.url.replace(/^https:\/\//i, '').split('/')[0];
+  if (!/\.github\.io$/i.test(host)) {
+    fs.writeFileSync(path.join(docsDir, 'CNAME'), host + '\n');
+  }
+  console.log(`SEO: ${site.url} — ${bundle.posts.length} post page(s) + blog index, about, 404, sitemap, robots, feed.`);
 
   // Compute manifest
   const hashes = computeHashes(docsDir, docsDir);

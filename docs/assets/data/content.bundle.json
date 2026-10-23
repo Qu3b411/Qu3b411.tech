@@ -7,7 +7,8 @@
       "file": "welcome.md",
       "path": "blog/welcome.md",
       "date": "2025-01-01",
-      "summary": "Welcome to the terminal blog"
+      "summary": "Welcome to the terminal blog",
+      "slug": "welcome"
     },
     {
       "id": "terminal_tricks",
@@ -15,7 +16,8 @@
       "file": "terminal_tricks.md",
       "path": "blog/terminal_tricks.md",
       "date": "2025-01-02",
-      "summary": "Learn some terminal tricks"
+      "summary": "Learn some terminal tricks",
+      "slug": "terminal-tricks"
     }
   ],
   "vfs": {
