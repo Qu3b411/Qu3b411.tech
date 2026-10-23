@@ -23,10 +23,9 @@ export const SECRETS = {
     'guest:x:1001:1001:,,,:/home/guest:/usr/sbin/nologin',
     'nobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin',
     '',
-    "# you cat'd /etc/passwd on a static site. bold. there are no creds here.",
-    '# two notes-to-self below. one is a decoy. you know base64 when you see it.',
-    '# bG9sIG5vLiB0aGUgcmVhbCBjbHVlIGlzIGluIHRoZSBPVEhFUiBjb21tZW50LiBrZWVwIGxvb2tpbmcsIGNoYW1wLg==',
-    '# bGF5ZXIgMiAtLSByb3QxMy4gZGVjb2RlLCB0aGVuIHJlYWQgdGhlIGhleDoKICA2cjZzNzQyMDYzNzI3OTcwNzQ2czJxMzEzMDMxMnIyMDc0Njg2NTIwNnA2czYzNm8yMDY5NzMyMDc0NjU3ODc0NjI2czZzNm8yMDcyNzM2MTJyMjA3Mjc1NnIzbjIwNjM2ODYxNnA2cDY1NnI2NzY1',
+    "# you cat'd /etc/passwd on a static site. bold. nothing crackable here.",
+    '# ...except whatever someone fat-fingered into this comment. good luck.',
+    '# NzQ2ODY1MjA3MjY1NjE2cDIwNnA2czYzNm8yMDY5NzMyMDc0NjU3ODc0NjI2czZzNm8yMDcyNzM2MTJyMjA3Mjc1NnIzbjIwNjM2ODYxNnA2cDY1NnI2NzY1',
   ],
   '/etc/shadow': [
     'root:!:19876:0:99999:7:::',
