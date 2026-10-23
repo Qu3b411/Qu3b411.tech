@@ -3,7 +3,7 @@
 // virtual filesystem navigation and printing to the terminal output.
 
 import { GAMES } from './games/index.js';
-import { SECRETS, tryUnlock } from './secrets.js';
+import { SECRETS, tryUnlock, padOracle, challengeBrief } from './secrets.js';
 
 function stripTerminalControls(value) {
   return String(value)
@@ -63,6 +63,11 @@ export class Terminal {
     // Focus the terminal on init so that user can start typing immediately
     if (typeof this.term.focus === 'function') {
       this.term.focus();
+    }
+    // Expose the padding oracle for scripted attacks from the devtools console.
+    // (The `challenge` command documents it.) Returns Promise<boolean>.
+    if (typeof window !== 'undefined') {
+      window.__padoracle = (ivHex, ctHex) => padOracle(ivHex, ctHex);
     }
     // Print welcome / initial prompt
     this.printPrompt();
@@ -152,12 +157,18 @@ export class Terminal {
       case '\n': // Enter (LF, e.g. from pasted input)
         this.term.write('\r\n');
         const cmd = this.commandBuffer.trim();
+        this.commandBuffer = '';
         if (cmd.length) {
           this.history.unshift(cmd);
           this.historyIndex = -1;
-          this.executeCommand(cmd);
+          const result = this.executeCommand(cmd);
+          // Async commands (the padding-oracle ones) return a promise; defer
+          // the next prompt until they finish so output lands before it.
+          if (result && typeof result.then === 'function') {
+            result.finally(() => { if (!this.game) this.printPrompt(); });
+            break;
+          }
         }
-        this.commandBuffer = '';
         // A launched game takes over the screen; don't draw a prompt over it.
         if (!this.game) this.printPrompt();
         break;
@@ -331,9 +342,13 @@ export class Terminal {
       case 'clear':
         this.clear();
         break;
-      case 'unlock': // hidden: payoff for the /etc/passwd puzzle
-        this.doUnlock(args.join(' '));
+      case 'unlock': // hidden: payoff — submit the recovered flag
+        return this.doUnlock(args.join(' '));
+      case 'challenge': // hidden: print the padding-oracle brief
+        challengeBrief().forEach((line) => this.printLine(line));
         break;
+      case 'oracle': // hidden: single manual padding-oracle query
+        return this.doOracle(args[0], args[1]);
       case '':
         break;
       default:
@@ -349,10 +364,25 @@ export class Terminal {
 
   // Hidden: check the puzzle answer. Correct answer flips to a cosmetic root
   // prompt for the session.
-  doUnlock(answer) {
-    const res = tryUnlock(answer);
+  async doUnlock(answer) {
+    const res = await tryUnlock(answer);
     res.message.forEach((line) => this.printLine(line));
     if (res.rooted) this.rooted = true;
+  }
+
+  // Hidden: one manual padding-oracle query. The real attack scripts
+  // window.__padoracle from the console; this is for poking by hand.
+  async doOracle(ivHex, ctHex) {
+    if (!ivHex || !ctHex) {
+      this.printLine('oracle: usage: oracle <ivHex> <ctHex>');
+      return;
+    }
+    try {
+      const ok = await padOracle(ivHex, ctHex);
+      this.printLine(`padding: ${ok ? 'VALID' : 'INVALID'}`);
+    } catch (e) {
+      this.printLine(`oracle: ${e.message}`);
+    }
   }
 
   // Run an executable path. Only files with the rx bit (the hidden games) are
