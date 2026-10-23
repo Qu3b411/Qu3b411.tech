@@ -3,6 +3,7 @@
 // virtual filesystem navigation and printing to the terminal output.
 
 import { GAMES } from './games/index.js';
+import { SECRETS, tryUnlock } from './secrets.js';
 
 function stripTerminalControls(value) {
   return String(value)
@@ -118,10 +119,15 @@ export class Terminal {
     }
   }
 
+  // The prompt string (root mode is purely cosmetic, unlocked via the puzzle).
+  promptString() {
+    const path = '/' + this.cwd.join('/');
+    return this.rooted ? `root@qu3b411:${path}# ` : `${path}> `;
+  }
+
   // Print the current prompt
   printPrompt() {
-    const path = '/' + this.cwd.join('/');
-    this.term.write(`\r\n${path}> `);
+    this.term.write('\r\n' + this.promptString());
   }
 
   // Print a line to the terminal
@@ -206,10 +212,8 @@ export class Terminal {
 
   // Clear current input line (used when navigating history)
   clearLine() {
-    // Move cursor to start of line: send CR and rewrite prompt
-    const path = '/' + this.cwd.join('/');
-    // Clear line using VT sequences: CR then clear line right
-    this.term.write(`\r${path}> \x1b[K`);
+    // Move cursor to start of line: send CR, rewrite prompt, clear to EOL
+    this.term.write('\r' + this.promptString() + '\x1b[K');
   }
 
   // Resolve a directory fragment (e.g. '', 'blog/', '/', '../') to cwd-relative
@@ -292,7 +296,7 @@ export class Terminal {
     } else {
       const names = candidates.map((c) => c.name + (c.dir ? '/' : ''));
       this.term.write('\r\n' + names.join('  '));
-      this.term.write(`\r\n${this.cwdPath}> ${this.commandBuffer}`);
+      this.term.write('\r\n' + this.promptString() + this.commandBuffer);
     }
   }
 
@@ -327,6 +331,9 @@ export class Terminal {
       case 'clear':
         this.clear();
         break;
+      case 'unlock': // hidden: payoff for the /etc/passwd puzzle
+        this.doUnlock(args.join(' '));
+        break;
       case '':
         break;
       default:
@@ -338,6 +345,14 @@ export class Terminal {
   // Clear entire screen (scrollback)
   clear() {
     this.term.clear();
+  }
+
+  // Hidden: check the puzzle answer. Correct answer flips to a cosmetic root
+  // prompt for the session.
+  doUnlock(answer) {
+    const res = tryUnlock(answer);
+    res.message.forEach((line) => this.printLine(line));
+    if (res.rooted) this.rooted = true;
   }
 
   // Run an executable path. Only files with the rx bit (the hidden games) are
@@ -575,6 +590,11 @@ export class Terminal {
   cat(file) {
     if (!file) {
       this.printLine('cat: missing operand');
+      return;
+    }
+    // Easter-egg "files" (/etc/passwd & friends) with the hidden puzzle.
+    if (SECRETS[file]) {
+      SECRETS[file].forEach((line) => this.printLine(line));
       return;
     }
     const md = this.getMarkdownForFile(file);
