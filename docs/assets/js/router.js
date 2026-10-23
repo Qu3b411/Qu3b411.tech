@@ -199,6 +199,13 @@ export class Router {
     if (vPath === 'about.md') {
       return this.terminal.bundle.aboutMd;
     }
+    // Hidden /.games source files: render as a fenced code block so vim/nano
+    // show them in a <pre> with original formatting preserved.
+    if (vPath.startsWith('.games/')) {
+      const games = this.terminal.bundle.games || {};
+      const src = games[vPath];
+      return src != null ? '```\n' + src + '\n```' : undefined;
+    }
     return this.terminal.bundle.postMarkdownByVirtualPath[vPath];
   }
 }

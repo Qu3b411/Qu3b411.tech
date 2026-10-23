@@ -2,6 +2,8 @@
 // This module exports a Terminal class that manages command parsing,
 // virtual filesystem navigation and printing to the terminal output.
 
+import { runSnake } from './snake.js';
+
 function stripTerminalControls(value) {
   return String(value)
     .replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1B\\))/g, '')
@@ -129,6 +131,11 @@ export class Terminal {
 
   // Handle input from xterm
   handleData(data) {
+    // While a game is running it owns all keyboard input.
+    if (this.game) {
+      this.game.input(data);
+      return;
+    }
     switch (data) {
       case '\u0003': // Ctrl+C
         this.commandBuffer = '';
@@ -144,7 +151,8 @@ export class Terminal {
           this.executeCommand(cmd);
         }
         this.commandBuffer = '';
-        this.printPrompt();
+        // A launched game takes over the screen; don't draw a prompt over it.
+        if (!this.game) this.printPrompt();
         break;
       case '\u007f': // Backspace
         if (this.commandBuffer.length > 0) {
@@ -203,6 +211,12 @@ export class Terminal {
   // Execute a full command string
   executeCommand(cmd) {
     const [command, ...args] = cmd.split(/\s+/);
+    // Executable paths (files with the rx bit): ./snake.js in /.games, or an
+    // absolute /.games/snake.js. Bare names are not executable (need ./).
+    if (command.startsWith('./') || command.startsWith('/')) {
+      this.execFile(command);
+      return;
+    }
     switch (command) {
       case 'help':
         this.printLine('Commands: ls, cd, cat, vim, nano, clear, help');
@@ -238,6 +252,34 @@ export class Terminal {
     this.term.clear();
   }
 
+  // Run an executable path. Only files with the rx bit (currently just the
+  // hidden game) are runnable; anything else reports "No such file".
+  execFile(command) {
+    let p = command;
+    if (p.startsWith('./')) {
+      p = p.slice(2);
+      p = this.cwd.length ? this.cwd.join('/') + '/' + p : p;
+    } else if (p.startsWith('/')) {
+      p = p.replace(/^\/+/, '');
+    }
+    if (p === '.games/snake.js') {
+      this.launchSnake();
+      return;
+    }
+    this.printLine(`${command}: No such file or directory`);
+  }
+
+  // Launch the terminal Snake game; it owns input until the player quits.
+  launchSnake() {
+    this.game = runSnake(this.term, {
+      onExit: () => {
+        this.game = null;
+        this.printPrompt();
+        if (typeof this.term.focus === 'function') this.term.focus();
+      },
+    });
+  }
+
   // Current working directory path
   get cwdPath() {
     return '/' + this.cwd.join('/');
@@ -262,11 +304,11 @@ export class Terminal {
       if (p === '..') newCwd.pop();
       else newCwd.push(p);
     }
-    // Validate path: allowed only root and blog
+    // Validate path: root, blog, or the hidden .games directory
     if (newCwd.length === 0) {
       // OK
-    } else if (newCwd.length === 1 && newCwd[0] === 'blog') {
-      // OK
+    } else if (newCwd.length === 1 && (newCwd[0] === 'blog' || newCwd[0] === '.games')) {
+      // OK ('.games' is navigable but hidden from a plain ls)
     } else {
       this.printLine(`cd: ${target}: No such file or directory`);
       return;
@@ -278,9 +320,18 @@ export class Terminal {
   // List directory contents.
   // Supports: ls, ls <path>, ls -l, ls -la (order-insensitive).
   ls(...args) {
-    const opts = new Set(args.filter((a) => a.startsWith('-')));
-    const long = opts.has('-l') || opts.has('-la') || opts.has('-al');
-    const all = opts.has('-a') || opts.has('-la') || opts.has('-al');
+    // Parse clustered flags like -l, -a, -la, -lah. -h (human sizes) is accepted
+    // but has no visible effect on our deterministic fake metadata.
+    let long = false;
+    let all = false;
+    for (const a of args) {
+      if (a.startsWith('-') && a.length > 1) {
+        for (const ch of a.slice(1)) {
+          if (ch === 'l') long = true;
+          else if (ch === 'a') all = true;
+        }
+      }
+    }
 
     const target = args.find((a) => !a.startsWith('-'));
 
@@ -319,6 +370,8 @@ export class Terminal {
 
     const listRoot = () => {
       if (!long) {
+        // '.games' is a hidden directory: only revealed with -a.
+        if (all) outSimple('.games', true);
         outSimple('blog', true);
         outSimple('about.md', false);
         // join names once for simple listing
@@ -328,9 +381,25 @@ export class Terminal {
       if (all) {
         outLong(dirPerm, 2, owner, group, dirSize, '.');
         outLong(dirPerm, 4, owner, group, dirSize, '..');
+        outLong(dirPerm, 2, owner, group, dirSize, '.games');
       }
       outLong(dirPerm, 2, owner, group, dirSize, 'blog');
       outLong(filePerm, 1, owner, group, 300, 'about.md');
+    };
+
+    const listGames = () => {
+      const execPerm = '-rwxr-xr-x';
+      const snake = (this.bundle.games && this.bundle.games['.games/snake.js']) || '';
+      if (!long) {
+        outSimple('snake.js', false);
+        this.printLine(names.join(' '));
+        return;
+      }
+      if (all) {
+        outLong(dirPerm, 2, owner, group, dirSize, '.');
+        outLong(dirPerm, 2, owner, group, dirSize, '..');
+      }
+      outLong(execPerm, 1, owner, group, snake.length || 1024, 'snake.js');
     };
 
     const listBlog = () => {
@@ -360,6 +429,10 @@ export class Terminal {
       listBlog();
       return;
     }
+    if (pathStr === '/.games') {
+      listGames();
+      return;
+    }
     this.printLine(`ls: cannot access '${target || pathStr}': No such file or directory`);
   }
 
@@ -373,9 +446,13 @@ export class Terminal {
       const vPath = 'blog/' + file;
       return this.bundle.postMarkdownByVirtualPath[vPath];
     }
+    if (this.cwdPath === '/.games') {
+      return (this.bundle.games || {})['.games/' + file];
+    }
     if (file && file.startsWith('/')) {
       const trimmed = file.replace(/^\//, '');
       if (trimmed === 'about.md') return this.bundle.aboutMd;
+      if (trimmed.startsWith('.games/')) return (this.bundle.games || {})[trimmed];
       const vPath = trimmed;
       return this.bundle.postMarkdownByVirtualPath[vPath];
     }
@@ -425,6 +502,9 @@ export class Terminal {
     }
     if (this.cwdPath === '/blog') {
       return 'blog/' + file;
+    }
+    if (this.cwdPath === '/.games') {
+      return '.games/' + file;
     }
     return file;
   }

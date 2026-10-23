@@ -34,12 +34,21 @@ function bundleContent({ repoRoot }) {
   if (fs.existsSync(imagesDir)) {
     images = fs.readdirSync(imagesDir).filter((f) => !fs.statSync(path.join(imagesDir, f)).isDirectory());
   }
+  // Hidden /.games directory: expose the real source text of each game so the
+  // shell's cat/vim/nano can display it. The same files are also served as
+  // modules (copied with src/js) so they can actually run.
+  const games = {};
+  const snakeSrc = path.join(repoRoot, 'src', 'js', 'snake.js');
+  if (fs.existsSync(snakeSrc)) {
+    games['.games/snake.js'] = fs.readFileSync(snakeSrc, 'utf8');
+  }
   return {
     aboutMd,
     posts,
     vfs,
     postMarkdownByVirtualPath,
     images,
+    games,
   };
 }
 
