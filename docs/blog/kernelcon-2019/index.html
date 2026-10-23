@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; img-src 'self' data:; script-src 'self'; style-src 'self' 'unsafe-inline';" />
+    <title>Kernelcon-2019 CTF writeups — qu3b411.tech</title>
+    <meta name="description" content="Writeups for the KernelCon 2019 CTF challenges: setup, reversing, and the DNA puzzle." />
+    <meta name="author" content="qu3b411" />
+    <link rel="canonical" href="https://qu3b411.tech/blog/kernelcon-2019/" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="qu3b411.tech" />
+    <meta property="og:title" content="Kernelcon-2019 CTF writeups — qu3b411.tech" />
+    <meta property="og:description" content="Writeups for the KernelCon 2019 CTF challenges: setup, reversing, and the DNA puzzle." />
+    <meta property="og:url" content="https://qu3b411.tech/blog/kernelcon-2019/" />
+    <meta property="og:image" content="https://qu3b411.tech/assets/images/ProfilePicture.png" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Kernelcon-2019 CTF writeups — qu3b411.tech" />
+    <meta name="twitter:description" content="Writeups for the KernelCon 2019 CTF challenges: setup, reversing, and the DNA puzzle." />
+    <meta name="twitter:image" content="https://qu3b411.tech/assets/images/ProfilePicture.png" />
+    <link rel="alternate" type="application/rss+xml" title="qu3b411.tech" href="../../feed.xml" />
+    <link rel="stylesheet" href="../../assets/css/site.css" />
+    <link rel="stylesheet" href="../../assets/css/terminal.css" />
+    <link rel="stylesheet" href="../../assets/xterm/xterm.css" />
+    <link rel="stylesheet" href="../../assets/css/article.css" />
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"Kernelcon-2019 CTF writeups","description":"Writeups for the KernelCon 2019 CTF challenges: setup, reversing, and the DNA puzzle.","datePublished":"2019-10-30","dateModified":"2019-10-30","author":{"@type":"Person","name":"qu3b411"},"publisher":{"@type":"Person","name":"qu3b411"},"mainEntityOfPage":{"@type":"WebPage","@id":"https://qu3b411.tech/blog/kernelcon-2019/"},"url":"https://qu3b411.tech/blog/kernelcon-2019/","image":"https://qu3b411.tech/assets/images/ProfilePicture.png"}</script>
+  </head>
+  <body class="page-article" data-view="vim" data-path="blog/kernelcon-2019.md">
+    <div id="prerender">
+      <main class="article">
+        <nav class="article-nav">
+          <a class="back" href="../../">← qu3b411.tech</a>
+          <a class="term" href="../../blog/">All posts</a>
+        </nav>
+        <article>
+          <h1>Kernelcon-2019 CTF writeups</h1>
+          <p class="article-date"><time datetime="2019-10-30">2019-10-30</time></p>
+<p>Kernelcon 2020 is a litle less then 5 months away and my newest challenges are well into their development life cycle. However this post is not about 2020; Instead I will be taking you, the reader, through the CTF writeups for the ctf&#39;s I developed for 2019!</p>
+<h1>Setting Up for the CTF&#39;s</h1>
+<h2>Getting the Challenges</h2>
+<p>All of these challenges were built to run on a Debian build Linux distro!. From a Linux terminal, run the following commands to pull down the repository!</p>
+<pre><code>Qu3b411@host:~/$ mkdir kernelcon-2019-ctf-qu3b411
+Qu3b411@host:~/$ cd kernelcon-2019-ctf-qu3b411
+Qu3b411@host:~/kernelcon-2019-ctf-qu3b411$ git init
+Initialized empty Git repository in /home/Qu3b411/kernelcon-2019-ctf-qu3b411/.git/
+Qu3b411@host:~/kernelcon-2019-ctf-qu3b411$ git clone https://github.com/qu3b411/kernelcon-CTF-2019-solutions
+Cloning into &#39;kernelcon-CTF-2019-solutions&#39;...
+remote: Enumerating objects: 51, done.
+remote: Counting objects: 100% (51/51), done.
+remote: Compressing objects: 100% (49/49), done.
+remote: Total 51 (delta 5), reused 43 (delta 1), pack-reused 0
+Unpacking objects: 100% (51/51), done.
+Qu3b411@host:~/kernelcon-2019-ctf-qu3b411$ cd kernelcon-CTF-2019-solution  
+Qu3b411@host:~/kernelcon-2019-ctf-qu3b411/kernelcon-CTF-2019-solutions$ ls -l
+total 24
+drwxrwxr-x 4 qu3b411 qu3b411 4096 Oct 30 11:09  ah-ah-ah,-You-didnt-say-the-magic-word
+drwxrwxr-x 4 qu3b411 qu3b411 4096 Oct 30 11:09  I-did-a-test-run-on-this-thing-it-took-me-twenty-minutes
+-rw-rw-r-- 1 qu3b411 qu3b411 1068 Oct 30 11:09  LICENSE
+-rw-rw-r-- 1 qu3b411 qu3b411  348 Oct 30 11:09  README.md
+drwxrwxr-x 4 qu3b411 qu3b411 4096 Oct 30 11:09  we-used-the-complete-DNA-of-a-frog-to-fill-in-the-holes-and-complete-the-code
+drwxrwxr-x 2 host host 4096 Oct 30 11:09 &#39;you-did-it-you-crazy-son-of-a-****-you-did-it&#39;
+Qu3b411@host:~/kernelcon-2019-ctf-qu3b411/kernelcon-CTF-2019-solutions$ </code></pre>
+<p>Now you have all of CTF&#39;s that I wrote for kernelcon. Next you will need to get Ida-pro free.</p>
+<h2>Installing IDA</h2>
+<p>install <a href="https://www.hex-rays.com/products/ida/support/download_freeware.shtml" target="_blank" rel="noopener noreferrer">IDA-PRO 7.0 freeware</a> onto your Linux machine!</p>
+<pre><code>
+Qu3b411@host:~/kernelcon-2019-ctf-qu3b411/kernelcon-CTF-2019-solutions$ pushd ~/Downloads
+~/Downloads ~/kernelcon-2019-ctf-qu3b411/kernelcon-CTF-2019-solutions$
+Qu3b411@host:~/Downloads$ wget https://out7.hex-rays.com/files/idafree70_linux.run
+--2019-10-30 11:44:04--  https://out7.hex-rays.com/files/idafree70_linux.run
+Resolving out7.hex-rays.com (out7.hex-rays.com)... 85.17.87.13
+Connecting to out7.hex-rays.com (out7.hex-rays.com)|85.17.87.13|:443... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 47645071 (45M)
+Saving to: ‘idafree70_linux.run.2’
+
+idafree70_linux.run.2                    5%[==&gt;                                                                          ]   2.32M  71.9KB/s    eta 9m 43s ^</code></pre>
+<p>Let the download take place! Once complete your going to want to run the installer and follow the prompt leaving the default installation location as is!</p>
+<pre><code>
+Qu3b411@host:~/Downloads$ chmod +x ./idafree70.linux.run
+Qu3b411@host:~/Downloads$ ./idafree70_linux.run --mode text
+----------------------------------------------------------------------------
+Welcome to the IDA Free Setup Wizard.
+
+----------------------------------------------------------------------------
+Please read the following License Agreement. You must accept the terms of this 
+agreement before continuing with the installation.
+
+Press [Enter] to continue:
+IDA Pro Freeware 7.0
+
+This free version of IDA Pro is licensed to you for non-commercial
+use (at home for personal purposes). Commercial use requires a normal
+IDA Pro license. This license restriction supersedes other provisions
+in the standard IDA Pro license below.
+
+The IDA Pro computer programs, hereafter described as &quot;the software&quot;
+are licensed, not sold, to you by Hex-Rays SA pursuant to the
+terms and conditions of this Agreement. Hex-Rays SA reserves any
+right not expressly granted to you. You own the media on which the
+software is delivered but Hex-Rays SA retains ownership of all
+copies of the software itself. The software is protected by copyright
+law.
+
+Each copy of the software can only be used by a single user at a time.
+Each license permits the user to install the software on personal laptop
+and home computer, provided that no other user uses the software on those
+computers.
+
+This license also allows you to make as many copies of the installation media
+as you need for backup or installation purposes.
+
+Press [Enter] to continue:
+Restrictions
+
+You may not distribute copies of the software to another party or
+electronically transfer the software from one computer to another if
+one computer belongs to another party.
+
+You may not modify, adapt, translate, rent, lease, resell, distribute,
+or create derivative works based upon the software or any part
+thereof.
+
+Limited Warranty and Disclaimers
+
+The software is provided &quot;as is&quot; without warranty of any kind.
+Hex-Rays SA expressly disclaims all implied warranties, included
+but not limited to the implied warranties of merchantability and
+fitness for a particular purpose. Hex-Rays SA does not guarantee
+the software or any accompanying materials in terms of their
+correctness, accuracy, reliability, or otherwise. The entire risk as
+to the results and performance of the software and written materials
+is assumed by you.
+
+Complete Statement of Warranty
+
+Press [Enter] to continue:
+The limited warranty provided in preceding paragraphs are the only
+warranties of any kind made by Hex-Rays SA on this product. No
+oral or written information or advice given by Hex-Rays SA, its
+dealers, distributors, agents or employees shall create a warranty or
+in any way increase the scope of this warranty, and you may not rely
+on any such information or advice. This warranty gives you specific
+legal rights. You may have other rights, which vary from country to
+country.
+
+Limitation of Liability.
+
+In no event will Hex-Rays SA or its employees be liable to you
+for any consequential, incidental, or indirect damages arising out of
+the use or the inability to use the software or accompanying written
+material. This includes damages for loss of business profits, business
+interruption and loss of business information. The liability of
+Hex-Rays SA for actual damages for any cause whatsoever is
+limited to the money paid for the software that caused the damages.
+
+Termination
+
+This license is effective until terminated. It will terminate
+immediately without notice if you fail to comply with any of its
+Press [Enter] to continue:
+provisions. Upon termination you must destroy the software and all
+copies thereof. You may terminate this license at any time by
+destroying the software and all copies thereof.
+
+Disputes
+
+Disputes related to this agreement will be dealt with in the district court of
+Liège, Belgium.
+
+Press [Enter] to continue:
+
+Do you accept this license? [y/n]: y
+
+----------------------------------------------------------------------------
+Please specify the directory where IDA Free will be installed.
+
+Installation Directory [/home/host/idafree-7.0]: 
+
+----------------------------------------------------------------------------
+Setup is now ready to begin installing IDA Free on your computer.
+
+Do you want to continue? [Y/n]: y
+
+----------------------------------------------------------------------------
+Please wait while Setup installs IDA Free on your computer.
+
+ Installing
+ 0% ______________ 50% ______________ 100%
+ #########################################
+
+----------------------------------------------------------------------------
+Setup has finished installing IDA Free on your computer.</code></pre>
+<h1>The Challenges</h1>
+<p>These challenges were themed after Jurassic Park and some of these challenges cannot be solved without understanding the refrences so keep that in mind! Now that you have the tools set up I would encourage you to actually attempt to solve the challenges yourself!,</p>
+<h2>Ah Ah Ah, You Didn&#39;t Say the magic Word!</h2>
+<p>For this challenge you must watch the <a href="https://www.youtube.com/watch?v=RfiQYRn7fBg" target="_blank" rel="noopener noreferrer">video</a> that was provided during the CTF, without it there is no way to solve the challenge!</p>
+<p>In your Console do the following:</p>
+<pre><code>
+
+Qu3b411@host:~/Downloads$ pdpd; cd ./ah-ah-ah,-You-didnt-say-the-magic-word/challenge/
+Qu3b411@host:~/kernelcon-2019-ctf-qu3b411/kernelcon-CTF-2019-solutions/ah-ah-ah,-You-didnt-say-the-magic-word/challenge$ls -l
+total 40
+-rw-rw-r-- 1 qu3b411 qu3b411   169 Oct 30 11:09 ReadMe.md
+-rwxrwxr-x 1 qu3b411 qu3b411 17112 Oct 30 11:09 YouDidntSayTheMagicWord
+Qu3b411@host:~/kernelcon-2019-ctf-qu3b411/kernelcon-CTF-2019-solutions/ah-ah-ah,-You-didnt-say-the-magic-word/challenge$./YouDidntSayTheMagicWord
+Jurassic Park, System Security Interface
+Version 4.0.5, Alpha E
+Ready...
+&gt; </code></pre>
+<p>Notice the Simularity between the video and the provided interface. This was Intentional. When you run this, you must copy the input from the video.</p>
+<pre><code>Jurassic Park, System Security Interface
+Version 4.0.5, Alpha E
+Ready...
+&gt; access security
+access: PERMISSION DENIED.
+&gt; access security grid 
+access: PERMISSION DENIED.
+&gt; access main security grid
+access: PERMISSION DENIED....and...
+YOU DIDN&#39;T CHANGE THE MAGIC PARAMATER!
+YOU DIDN&#39;T CHANGE THE MAGIC PARAMATER!
+YOU DIDN&#39;T CHANGE THE MAGIC PARAMATER!
+YOU DIDN&#39;T CHANGE THE MAGIC PARAMATER!
+YOU DIDN&#39;T CHANGE THE MAGIC PARAMATER!
+YOU DIDN&#39;T CHANGE THE MAGIC PARAMATER!
+YOU DIDN&#39;T CHANGE THE MAGIC PARAMATER!
+YOU DIDN&#39;T CHANGE THE MAGIC PARAMATER!
+^C</code></pre>
+<p>Hit ctrl+C to stop the loop from printing the warning message. Obviously we are going to have to change a function paramater. This means its time to start reversing the binary! Run IDA against the binary!</p>
+<pre><code>Qu3b411@host:~/kernelcon-2019-ctf-qu3b411/kernelcon-CTF-2019-solutions/ah-ah-ah,-You-didnt-say-the-magic-word/challenge$~/idafree-7.0/ida64 ./YouDidntSayTheMagicWord</code></pre>
+<p>When presented with the following popup window select ok.</p>
+<p><img src="../../assets/images/Ahahah1.png" alt="" loading="lazy" /></p>
+<p>Then you will get the following options. Leave them in their default configuration and select ok.</p>
+<p><img src="../../assets/images/Ahahah2.png" alt="" loading="lazy" /></p>
+<p>By default, you should be presented with the Control Flow Diagram as such:</p>
+<p><img src="../../assets/images/ahahah3.png" alt="" loading="lazy" /></p>
+<p>Locate the function call to CruleAndUnusualExit.</p>
+<p><img src="../../assets/images/ahahah4.png" alt="" loading="lazy" /></p>
+<p>put your cursor over the  <code></code><code> mov edi,0</code><code></code> instruction and click, a cursor will appear where clicked! then go to<code></code><code>&#39;edit&gt;Patch program&gt;Assemble...</code><code></code></p>
+<p><img src="../../assets/images/ahahah5.png" alt="" loading="lazy" /></p>
+<p>A small window will appear letting you edit the program, change the <strong>Instruction</strong> Field from <code></code><code>mov edi, 0</code><code></code> to <code></code><code>mov edi, 1</code><code></code> and click <strong>ok</strong>!</p>
+<p><img src="../../assets/images/ahahah6.png" alt="" loading="lazy" /></p>
+<p>now click <strong>Cancel</strong>.</p>
+<p><img src="../../assets/images/ahahah7.png" alt="" loading="lazy" /></p>
+<p>Apply the patch to the input file by navigating to <code></code><code>Edit&gt;Patch program&gt;Apply patches to input file...</code><code></code>.</p>
+<p><img src="../../assets/images/ahahah8.png" alt="" loading="lazy" /></p>
+<p>When presented with the following screen click ok!</p>
+<p><img src="../../assets/images/ahahah9.png" alt="" loading="lazy" /></p>
+<p>Navigate back to your Console window and hit CTRL+c and ida will close leaving you in the terminal! then execute the following command to get the Kernel!</p>
+<pre><code>Qu3b411@host:~/kernelcon-2019-ctf-qu3b411/kernelcon-CTF-2019-solutions/ah-ah-ah,-You-didnt-say-the-magic-word/challenge$ ./YouDidntSayTheMagicWord 
+Jurassic Park, System Security Interface
+Version 4.0.5, Alpha E
+Ready...
+&gt; access security
+access: PERMISSION DENIED.
+&gt; access security grid
+access: PERMISSION DENIED.
+&gt; access main security grid
+kernel{74f2880d7deff82f118d2a412dc360c5}</code></pre>
+<p>Congratulations the flag is <strong>kernel{74f2880d7deff82f118d2a412dc360c5}</strong>.</p>
+<h2>We used the complete DNA of a frog to fill in the holes and complete the code.</h2>
+<p>Issue the following command in your console window to navigate to this challenge directory.</p>
+<pre><code>Qu3b411@host:~/kernelcon-2019-ctf-qu3b411/kernelcon-CTF-2019-solutions/ah-ah-ah,-You-didnt-say-the-magic-word/challenge$ cd ../../we-used-the-complete-DNA-of-a-frog-to-fill-in-the-holes-and-complete-the-code/challenge/
+Qu3b411@host:~/kernelcon-2019-ctf-qu3b411/kernelcon-CTF-2019-solutions/we-used-the-complete-DNA-of-a-frog-to-fill-in-the-holes-and-complete-the-code/challenge$ ls -l
+total 28
+-rwxrwxr-x 1 qu3b411 qu3b411 22936 Oct 30 11:09 DNASequence
+-rw-rw-r-- 1 qu3b411 qu3b411   820 Oct 30 11:09 ReadMe.md
+Qu3b411@host:~/kernelcon-2019-ctf-qu3b411/kernelcon-CTF-2019-solutions/we-used-the-complete-DNA-of-a-frog-to-fill-in-the-holes-and-complete-the-code/challenge$ ./DNASequence
+You did not correct the dna strand, your baby dino is a mutated freek of nature.</code></pre>
+<p>Their is no input, so lets start disassembling the code and see whats happening,</p>
+<pre><code>Qu3b411@host:~/kernelcon-2019-ctf-qu3b411/kernelcon-CTF-2019-solutions/we-used-the-complete-DNA-of-a-frog-to-fill-in-the-holes-and-complete-the-code/challenge$  ~/idafree-7.0/ida64 ./DNASequence </code></pre>
+<p>When presented with the following screen you dont have to change any settings, just click ok to continue loading the file.</p>
+<p><img src="../../assets/images/DNA1.png" alt="" loading="lazy" /></p>
+<p>in the function list you will notice several 3 letter combinations. these functions return a numerical representation of that string! you will also notice <code></code><code> HoleInDNA</code><code></code>,<code></code><code>DinoDnaSeq</code><code></code>,andFrogD<code></code><code>naSeq</code><code></code>.</p>
+<p><img src="../../assets/images/DNA2.png" alt="" loading="lazy" /></p>
+<p>By this point the problem should be clear to you based on the name of this Challenge &quot;We used the complete DNA of a frog to fill in the holes and complete the code&quot;! Its not my style to give red herrings and bad clues... I like a challenge that forces one to tackle the problem in a straight out technical manner. Lets take a look inside of the DinoDnaSeq and the FrogDnaSeq and see what&#39;s going on!</p>
+<p><img src="../../assets/images/DNA3.png" alt="" loading="lazy" /></p>
+<p>all throughout the <code></code><code>DinoDnaSeq</code><code></code> we see calls to <code></code><code>HoleInDNA</code><code></code>; these calls, as you may have noticed, adversly effect the control flow of the Assembly. You can&#39;t just change the function call. It just wont work the way you want it to.</p>
+<p><img src="../../assets/images/DNA4.png" alt="" loading="lazy" /></p>
+<p>However if you look at the <code></code><code>FrogDnaSeq</code><code></code> you may notice a nice clean control flow that would be a lot easier to manipulate, for this solution that&#39;s exactly what I&#39;m going to do, but first we have to construct a table to track the function calls. That table might look something like this!</p>
+<table><thead><tr><th>Dino start</th><th>Frog</th><th>Dino Fix</th><th>ARG</th></tr></thead><tbody><tr><td>GUC</td><td>UAC</td><td>GUC</td><td>0</td></tr><tr><td>CCU</td><td>CGU</td><td>CCU</td><td>0</td></tr><tr><td>GCU</td><td>GCC</td><td>GCU</td><td>0</td></tr><tr><td>UGU</td><td>ACU</td><td>UGU</td><td>0</td></tr><tr><td>HoleInDNA</td><td>GUC</td><td>GUC</td><td>1</td></tr><tr><td>ACA</td><td>ACA</td><td>ACA</td><td>0</td></tr><tr><td>AAU</td><td>AAU</td><td>AAU</td><td>0</td></tr><tr><td>GUA</td><td>GUA</td><td>GUA</td><td>0</td></tr><tr><td>HoleInDNA</td><td>GGG</td><td>GGG</td><td>1</td></tr><tr><td>UUU</td><td>UGU</td><td>UUU</td><td>0</td></tr><tr><td>GAC</td><td>GAG</td><td>GAC</td><td>0</td></tr><tr><td>CGU</td><td>GUA</td><td>CGU</td><td>0</td></tr><tr><td>GCC</td><td>GCA</td><td>GCC</td><td>0</td></tr><tr><td>ACU</td><td>AGU</td><td>ACU</td><td>0</td></tr><tr><td>GUA</td><td>CCA</td><td>GUA</td><td>0</td></tr><tr><td>AAA</td><td>GAA</td><td>AAA</td><td>0</td></tr><tr><td>CGG</td><td>CGC</td><td>CGG</td><td>0</td></tr><tr><td>GCU</td><td>UUU</td><td>GCU</td><td>0</td></tr><tr><td>UCC</td><td>CUC</td><td>UCC</td><td>0</td></tr><tr><td>CGC</td><td>CGU</td><td>CGC</td><td>0</td></tr><tr><td>HoleInDNA</td><td>AGC</td><td>AGC</td><td>1</td></tr><tr><td>ACG</td><td>UGC</td><td>ACG</td><td>0</td></tr><tr><td>AGG</td><td>GCA</td><td>AGG</td><td>0</td><td></td></tr><tr><td>CUA</td><td>UAU</td><td>CUA</td><td>0</td></tr><tr><td>CAC</td><td>GCA</td><td>CAC</td><td>0</td></tr><tr><td>GGG</td><td>AGA</td><td>GGG</td><td>0</td></tr><tr><td>CAU</td><td>AAA</td><td>CAU</td><td>0</td></tr><tr><td>HoleInDNA</td><td>CUA</td><td>CUA</td><td>1</td></tr><tr><td>UCU</td><td>ACA</td><td>UCU</td><td>0</td></tr><tr><td>CAU</td><td>AGC</td><td>CAU</td><td>0</td></tr><tr><td>GUG</td><td>UGA</td><td>GUG</td><td>0</td></tr><tr><td>UGA</td><td>GCU</td><td>UGA</td><td>0</td></tr><tr><td>GCA</td><td>CUC</td><td>GCA</td><td>0</td></tr><tr><td>CCC</td><td>CGA</td><td>CCC</td><td>0</td></tr><tr><td>HoleInDNA</td><td>AGC</td><td>AGC</td><td>1</td></tr><tr><td>UCC</td><td>UUG</td><td>UCC</td><td>0</td></tr><tr><td>UUC</td><td>GUC</td><td>UUC</td><td>0</td></tr><tr><td>AGG</td><td>CGU</td><td>AGG</td><td>0</td></tr><tr><td>AUU</td><td>AAA</td><td>AUU</td><td>0</td></tr><tr><td>GUC</td><td>GGC</td><td>GUC</td><td>0</td></tr><tr><td>ACG</td><td>CCA</td><td>ACG</td><td>0</td></tr><tr><td>HoleInDNA</td><td>CUU</td><td>CUU</td><td>1</td></tr><tr><td>GCA</td><td>ACA</td><td>GCA</td><td>0</td></tr><tr><td>CGC</td><td>CAA</td><td>CGC</td><td>0</td></tr><tr><td>UCU</td><td>UUC</td><td>UCU</td><td>0</td></tr><tr><td>UAC</td><td>GUG</td><td>UAC</td><td>0</td></tr><tr><td>GGA</td><td>GCA</td><td>GGA</td><td>0</td></tr><tr><td>AUA</td><td>AGA</td><td>AUA</td><td>0</td></tr><tr><td>CGA</td><td>AAG</td><td>CGA</td><td>0</td></tr><tr><td>GUC</td><td>UCG</td><td>GUC</td><td>0</td></tr><tr><td>ACG</td><td>GCU</td><td>ACG</td><td>0</td></tr><tr><td>CCC</td><td>GCC</td><td>CCC</td><td>0</td></tr><tr><td>CGU</td><td>UCG</td><td>CGU</td><td>0</td></tr><tr><td>ACC</td><td>UAA</td><td>ACC</td><td>0</td></tr><tr><td>ACG</td><td>AUU</td><td>ACG</td><td>0</td></tr><tr><td>HoleInDNA</td><td>GUA</td><td>GUA</td><td>1</td></tr><tr><td>ACC</td><td>CCG</td><td>ACC</td><td>0</td></tr><tr><td>GUG</td><td>CAC</td><td>GUG</td><td>0</td></tr><tr><td>CUC</td><td>GUG</td><td>CUC</td><td>0</td></tr><tr><td>AGU</td><td>GGU</td><td>AGU</td><td>0</td></tr><tr><td>UCC</td><td>CAC</td><td>UCC</td><td>0</td></tr><tr><td>HoleInDNA</td><td>GCA</td><td>GCA</td><td>1</td></tr><tr><td>GGA</td><td>AUG</td><td>GGA</td><td>0</td></tr><tr><td>UGC</td><td>CCU</td><td>UGC</td><td>0</td></tr></tbody></table>
+<p>Which means it&#39;s time to start patching the program up; First let&#39;s patch up the main program to call the correct function. For this solution we will actually be calling <code></code><code>FrogDnaSeq</code><code></code>. You must find the call to DinoDnaSeq, once located,highlight it and select <code></code><code>Edit&gt;Patch program&gt;Assemble...</code><code></code>.</p>
+<p><img src="../../assets/images/DNA5.png" alt="" loading="lazy" /></p>
+<p>The following window appears, you can then edit the function call, <code></code><code>call DinoDnaSeq</code><code></code> should be changed to <code></code><code>call FrogDnaSeq</code><code></code></p>
+<p><img src="../../assets/images/DNA_6.png" alt="" loading="lazy" /></p>
+<p>It&#39;s now time to start editing the FrogDnaSeq function. To do this traverse the table and edit the function calls in <code></code><code>FrogDnaSeq</code><code></code> to their respective values, as dictated by the table we constructed previously. Keep in mind it is important to change the function paramaters to correspond to where the DNA was inherited from!</p>
+<p>The register used to pass the paramater to the function call is <code></code><code>edi</code><code></code> ,the value being passed to the function will always occur immediatly before the call itself!</p>
+<p>Let&#39;s walk through the first function call together. Start by highlighting <code></code><code>mov edi, 0</code><code></code> and selecting <code></code><code>Edit&gt;Patch program&gt; Assemble</code><code></code></p>
+<p><img src="../../assets/images/DNA7.png" alt="" loading="lazy" /></p>
+<p>Modify the instruction from <code></code><code>mov edi,1</code><code></code> to <code></code><code>mov edi,0</code><code></code> and select <strong>ok</strong></p>
+<p><img src="../../assets/images/DNA8.png" alt="" loading="lazy" /></p>
+<p>Next modify the function call itself, Start by highlighting <code></code><code>call UAC</code><code></code> and then select <code></code><code>Edit&gt;Patch program&gt;Assemble...</code><code></code></p>
+<p><img src="../../assets/images/DNA9.png" alt="" loading="lazy" /></p>
+<p>In the Instructions Field modify <code></code><code>call UAC </code><code></code> to <code></code><code>call GUC</code><code></code> and press <strong>OK</strong></p>
+<p><img src="../../assets/images/DNA10.png" alt="" loading="lazy" /></p>
+<p>Hit <strong>Cancel</strong> on the proceeding screen, then repeat these steps modifying each function call to the corresponding value on the provided table. Remember that calls to HoleInDNA are voids that can be ignored, skip over that function call and move to the next... <strong>Do not modify</strong> the paramater being passed to HoleInDna.</p>
+<p>Once you have applied the patches to the binary go to <code></code><code>Edit&gt;Patch program&gt;Apply patches to input</code><code></code></p>
+<p><img src="../../assets/images/DNA11.png" alt="" loading="lazy" /></p>
+<p>the following window will appear, click <strong>ok</strong>.</p>
+<p><img src="../../assets/images/DNA12.png" alt="" loading="lazy" /></p>
+<p>Navigate back to your console and hit CTRL+c to terminate ida, then run the modified binary</p>
+<pre><code>Qu3b411@host:~/kernelcon-2019-ctf-qu3b411/kernelcon-CTF-2019-solutions/we-used-the-complete-DNA-of-a-frog-to-fill-in-the-holes-and-complete-the-code/challenge$ ./DNASequence
+Kernel{64bdfb39f4d8e2624c8ee42604c0150e}</code></pre>
+<p>Congratulations, You now have the Second ctf flag!</p>
+<h2>I did a test run on this thing it took me twenty minutes</h2>
+<p>This is the last one to be solved during KernelCon, This is a Misc challenge that does not require any reverse engineering. instead one must execute a timing attack against the password input, so lets get started!</p>
+<p>in your console window execute the following commands</p>
+<pre><code>Qu3b411@host:~/kernelcon-2019-ctf-qu3b411/kernelcon-CTF-2019-solutions/we-used-the-complete-DNA-of-a-frog-to-fill-in-the-holes-and-complete-the-code/challenge$ cd ../../I-did-a-test-run-on-this-thing-it-took-me-twenty-minutes/challange
+Qu3b411@host:~/kernelcon-2019-ctf-qu3b411/kernelcon-CTF-2019-solutions//I-did-a-test-run-on-this-thing-it-took-me-twenty-minutes/challange$ chmod +x ./VulnerableLogin
+Login: </code></pre>
+<p>The hint given during this challenge was <code></code><code>{0-9},{a-f},k,r,n,l,&#39;}&#39;,&#39;{&#39;</code><code></code>. This should have tipped off those whom were observent that the input to the login was the kernel flag!</p>
+<p>In the Console do the following.</p>
+<pre><code>Qu3b411@host:~/kernelcon-2019-ctf-qu3b411/kernelcon-CTF-2019-solutions//I-did-a-test-run-on-this-thing-it-took-me-twenty-minutes/challange$ vim TimingAttack.pl</code></pre>
+<p>You will then create a perl script, hit <code></code><code>i</code><code></code> to enter insertion mode in the vim console, write the following script</p>
+<pre><code>#!/usr/bin/env perl
+
+use Time::HiRes;
+
+my $str = &#39;kernel{&#39;; #Populate the base string with &#39;Kernel{&#39; to reduce characters in the attack space!
+
+# the hash value occupies 32 bytes in the flag!
+for(my $x=0; $x&lt;32; $x++)
+{
+  my @char; # an array to store the character that has the longest time return, this array also stores the time return
+  for my $n ((&#39;a&#39;..&#39;f&#39;),(0..9)) #iterate over the characters a-f0-9
+  {
+    my $t = [Timer::HiRes::gettimeofday()]; #get the current system time
+    system(&quot;echo $str$n |./VulnerableLogin &gt;&gt; /dev/null&quot;); # run the program with the password being built through the timing attack, redirect all output to /dev/null!
+    $t = Timer::HiRes::tv_interval($t); # record the execution time back into t.
+    if (!char) #if char is not defined, define it
+    {
+      @char = ($n,$t); #save character, return time in that order
+    }
+    elsif ($t &gt; $char[1]) # if the execution time is greater then the prior time then retest the character
+    {
+       my $t = [Timer::HiRes::gettimeofday()]; #get the current system time
+       system(&quot;echo $str$n |./VulnerableLogin &gt;&gt; /dev/null&quot;); # run the program with the password being built through the timing attack, redirect all output to /dev/null!
+       $t = Timer::HiRes::tv_interval($t); # record the execution time back into t.
+       if ($t &gt; $char[1]) # if it is not a false positive
+       {
+         @char = ($n,$t); #save character, return time in that order
+       }
+    }
+  }
+  $str.=&quot;$char[0]&quot;; #append the character to the login string
+  print &quot;$str\n&quot;; # print the character to view the progress  of your attack!
+}
+print $str.&quot;}\n&quot;; #print the flag with closing bracket</code></pre>
+<p>Hit the <code></code><code>esc</code><code></code> button then type <code></code><code>:wq!</code><code></code> into your console followed by hitting enter, you will return back to the console screen. you can now run the script, let it run, it will take some time to get the flag!</p>
+<pre><code>Qu3b411@host:~/kernelcon-2019-ctf-qu3b411/kernelcon-CTF-2019-solutions//I-did-a-test-run-on-this-thing-it-took-me-twenty-minutes/challange$ perl TimingAttack.pl
+kernel{e
+kernel{e2
+kernel{e2c
+kernel{e2c7
+kernel{e2c7b
+kernel{e2c7bf
+kernel{e2c7bf3
+kernel{e2c7bf33
+kernel{e2c7bf336
+kernel{e2c7bf3367
+kernel{e2c7bf33676
+kernel{e2c7bf336767
+kernel{e2c7bf3367678
+kernel{e2c7bf33676782
+kernel{e2c7bf336767828
+kernel{e2c7bf3367678289
+kernel{e2c7bf33676782893
+kernel{e2c7bf336767828931
+kernel{e2c7bf336767828931c
+kernel{e2c7bf336767828931c7
+kernel{e2c7bf336767828931c77
+kernel{e2c7bf336767828931c775
+kernel{e2c7bf336767828931c7750
+kernel{e2c7bf336767828931c7750c
+kernel{e2c7bf336767828931c7750cf
+kernel{e2c7bf336767828931c7750cfe
+kernel{e2c7bf336767828931c7750cfe3
+kernel{e2c7bf336767828931c7750cfe31
+kernel{e2c7bf336767828931c7750cfe31d
+kernel{e2c7bf336767828931c7750cfe31de
+kernel{e2c7bf336767828931c7750cfe31de8
+kernel{e2c7bf336767828931c7750cfe31de81
+kernel{e2c7bf336767828931c7750cfe31de81}</code></pre>
+<p>Congratulations You now have the third and final kernel flag!</p>
+<h1>I look forward to seeing everyone at <a href="https://kernelcon.org/" target="_blank" rel="noopener noreferrer">KernelCon 2020</a></h1>
+<p>Thank you for reading through my blog post. Be sure to register for the Con so you can see the new CTF&#39;s that I have been working on throughout the year.</p>
+        </article>
+      </main>
+    </div>
+    <div id="app-container">
+  <header id="header">
+    <!-- Centered inner bar, width-matched to the terminal panel below -->
+    <div class="header-inner">
+      <!-- Brand: logo + name on the left -->
+      <a class="header-brand" href="../../">
+        <img src="../../assets/images/ProfilePicture.png" alt="qu3b411 logo" class="header-logo" />
+        <span class="brand-name">qu3b411<span class="brand-dim">.tech</span></span>
+      </a>
+      <!-- Right side controls -->
+      <nav class="right-header-links" aria-label="Site navigation">
+        <button id="aboutBtn" class="header-btn">About</button>
+        <div id="postsDropdownContainer">
+          <label for="postsDropdown" class="visually-hidden">Scroll Posts</label>
+          <select id="postsDropdown" class="header-btn">
+            <option value="" disabled selected>Scroll Posts</option>
+          </select>
+        </div>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <div id="terminal" class="terminal-shell">
+      <!-- Terminal header with window control buttons -->
+      <div class="term-header">
+        <span class="window-btn close"></span>
+        <span class="window-btn minimize"></span>
+        <span class="window-btn maximize"></span>
+      </div>
+      <!-- Inner surface holds both the terminal view and editor surfaces. It is positioned relative so that
+           child views can fill the same viewport. -->
+      <div id="terminalSurface" class="term-surface">
+        <!-- Container where xterm.js will attach -->
+        <div id="term-container" class="term-container"></div>
+        <!-- Editor surface that replaces the xterm view when in editor modes -->
+        <div id="editor-surface" hidden tabindex="0" role="application" aria-label="Editor mode">
+          <!-- VIM in-terminal surface -->
+          <div id="vimSurface" hidden class="editor-view">
+            <div class="view-header">VIM <span class="view-hint">Press :q to exit</span></div>
+            <div id="vimContent" class="view-content"></div>
+          </div>
+          <!-- NANO in-terminal surface -->
+          <div id="nanoSurface" hidden class="editor-view">
+            <div class="view-header">NANO <span class="view-hint">Press Ctrl+X to exit</span></div>
+            <div id="nanoContent" class="view-content"></div>
+            <div class="nano-bottom-bar" aria-hidden="true">
+              <span>^G Get Help</span>
+              <span>^O Write Out</span>
+              <span>^W Where Is</span>
+              <span>^K Cut Text</span>
+              <span>^U Uncut Text</span>
+              <span>^X Exit</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+  <footer id="footer">
+    <nav class="foot-links" aria-label="Footer navigation">
+      <a href="../../">Home</a>
+      <span aria-hidden="true">·</span>
+      <a href="../../blog/">Blog</a>
+      <span aria-hidden="true">·</span>
+      <a href="../../about/">About</a>
+      <span aria-hidden="true">·</span>
+      <a href="../../feed.xml">RSS</a>
+    </nav>
+    <div class="foot-copy">&copy; 2026 qu3b411.tech</div>
+  </footer>
+</div>
+
+    <script src="../../assets/xterm/xterm.js"></script>
+    <script type="module" src="../../assets/js/app.js"></script>
+  </body>
+</html>

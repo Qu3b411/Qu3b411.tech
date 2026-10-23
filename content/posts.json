@@ -14,5 +14,13 @@
     "path": "blog/terminal_tricks.md",
     "date": "2025-01-02",
     "summary": "Learn some terminal tricks"
+  },
+  {
+    "id": "kernelcon-2019",
+    "title": "Kernelcon-2019 CTF writeups",
+    "file": "kernelcon-2019.md",
+    "path": "blog/kernelcon-2019.md",
+    "date": "2019-10-30",
+    "summary": "Writeups for the KernelCon 2019 CTF challenges: setup, reversing, and the DNA puzzle."
   }
 ]

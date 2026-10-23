@@ -147,7 +147,15 @@ function mdToHtml(md, assetPrefix) {
       .join('');
   };
 
-  lines.forEach((line) => {
+  // Split a GFM table row into trimmed cells (tolerating optional edge pipes).
+  const tableCells = (row) =>
+    row.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map((c) => c.trim());
+  // A separator row is all-dash cells like | --- | :--: |.
+  const isTableSep = (s) =>
+    s.includes('|') && tableCells(s).length >= 1 && tableCells(s).every((c) => /^:?-{1,}:?$/.test(c));
+
+  for (let li = 0; li < lines.length; li++) {
+    const line = lines[li];
     if (/^```/.test(line)) {
       if (inCode) {
         out.push(`<pre><code>${escapeHtml(codeBuf.join('\n'))}</code></pre>`);
@@ -157,24 +165,51 @@ function mdToHtml(md, assetPrefix) {
         flushList();
         inCode = true;
       }
-      return;
+      continue;
     }
     if (inCode) {
       codeBuf.push(line);
-      return;
+      continue;
+    }
+    // GFM pipe table: a row followed by a dash separator row.
+    if (line.includes('|') && li + 1 < lines.length && isTableSep(lines[li + 1])) {
+      flushList();
+      const header = tableCells(line);
+      li += 1; // consume separator
+      const rows = [];
+      while (li + 1 < lines.length && lines[li + 1].includes('|') && lines[li + 1].trim()) {
+        li += 1;
+        rows.push(tableCells(lines[li]));
+      }
+      let t = '<table><thead><tr>' + header.map((h) => `<th>${inline(h)}</th>`).join('') + '</tr></thead>';
+      t += '<tbody>' + rows.map((r) => '<tr>' + r.map((c) => `<td>${inline(c)}</td>`).join('') + '</tr>').join('') + '</tbody></table>';
+      out.push(t);
+      continue;
+    }
+    // Blockquote: one or more consecutive '>' lines.
+    if (/^\s*>\s?/.test(line)) {
+      flushList();
+      const quote = [];
+      while (li < lines.length && /^\s*>\s?/.test(lines[li])) {
+        quote.push(inline(lines[li].replace(/^\s*>\s?/, '')));
+        li += 1;
+      }
+      li -= 1; // the for-loop will advance past the last quote line
+      out.push('<blockquote><p>' + quote.join('<br />') + '</p></blockquote>');
+      continue;
     }
     if (/^\s*-\s+/.test(line)) {
       listBuf.push(line.replace(/^\s*-\s+/, ''));
-      return;
+      continue;
     }
     flushList();
     const trimmed = line.trim();
-    if (!trimmed) return;
+    if (!trimmed) continue;
     if (/^### /.test(line)) out.push(`<h3>${inline(line.slice(4).trim())}</h3>`);
     else if (/^## /.test(line)) out.push(`<h2>${inline(line.slice(3).trim())}</h2>`);
     else if (/^# /.test(line)) out.push(`<h1>${inline(line.slice(2).trim())}</h1>`);
     else out.push(`<p>${inline(trimmed)}</p>`);
-  });
+  }
   if (inCode) out.push(`<pre><code>${escapeHtml(codeBuf.join('\n'))}</code></pre>`);
   flushList();
   return out.join('\n');

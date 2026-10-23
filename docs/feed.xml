@@ -21,5 +21,12 @@
       <pubDate>Wed, 01 Jan 2025 00:00:00 GMT</pubDate>
       <description>Welcome to the terminal blog</description>
     </item>
+    <item>
+      <title>Kernelcon-2019 CTF writeups</title>
+      <link>https://qu3b411.tech/blog/kernelcon-2019/</link>
+      <guid isPermaLink="true">https://qu3b411.tech/blog/kernelcon-2019/</guid>
+      <pubDate>Wed, 30 Oct 2019 00:00:00 GMT</pubDate>
+      <description>Writeups for the KernelCon 2019 CTF challenges: setup, reversing, and the DNA puzzle.</description>
+    </item>
   </channel>
 </rss>
