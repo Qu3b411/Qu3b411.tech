@@ -3,7 +3,7 @@
 // virtual filesystem navigation and printing to the terminal output.
 
 import { GAMES } from './games/index.js';
-import { SECRETS, tryUnlock, padOracle, challengeBrief } from './secrets.js';
+import { SECRETS, tryUnlock, challengeBrief } from './secrets.js';
 
 function stripTerminalControls(value) {
   return String(value)
@@ -63,11 +63,6 @@ export class Terminal {
     // Focus the terminal on init so that user can start typing immediately
     if (typeof this.term.focus === 'function') {
       this.term.focus();
-    }
-    // Expose the padding oracle for scripted attacks from the devtools console.
-    // (The `challenge` command documents it.) Returns Promise<boolean>.
-    if (typeof window !== 'undefined') {
-      window.__padoracle = (ivHex, ctHex) => padOracle(ivHex, ctHex);
     }
     // Print welcome / initial prompt
     this.printPrompt();
@@ -344,11 +339,9 @@ export class Terminal {
         break;
       case 'unlock': // hidden: payoff — submit the recovered flag
         return this.doUnlock(args.join(' '));
-      case 'challenge': // hidden: print the padding-oracle brief
+      case 'challenge': // hidden: print the RSA challenge brief
         challengeBrief().forEach((line) => this.printLine(line));
         break;
-      case 'oracle': // hidden: single manual padding-oracle query
-        return this.doOracle(args[0], args[1]);
       case '':
         break;
       default:
@@ -368,21 +361,6 @@ export class Terminal {
     const res = await tryUnlock(answer);
     res.message.forEach((line) => this.printLine(line));
     if (res.rooted) this.rooted = true;
-  }
-
-  // Hidden: one manual padding-oracle query. The real attack scripts
-  // window.__padoracle from the console; this is for poking by hand.
-  async doOracle(ivHex, ctHex) {
-    if (!ivHex || !ctHex) {
-      this.printLine('oracle: usage: oracle <ivHex> <ctHex>');
-      return;
-    }
-    try {
-      const ok = await padOracle(ivHex, ctHex);
-      this.printLine(`padding: ${ok ? 'VALID' : 'INVALID'}`);
-    } catch (e) {
-      this.printLine(`oracle: ${e.message}`);
-    }
   }
 
   // Run an executable path. Only files with the rx bit (the hidden games) are
