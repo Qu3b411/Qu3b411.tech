@@ -78,13 +78,10 @@
         <div id="term-container" class="term-container"></div>
         <!-- Editor surface that replaces the xterm view when in editor modes -->
         <div id="editor-surface" hidden tabindex="0" role="application" aria-label="Editor mode">
-          <!-- VIM in-terminal surface -->
+          <!-- VIM in-terminal surface. Panes are built dynamically; the
+               command line at the bottom is shared across all windows. -->
           <div id="vimSurface" hidden class="editor-view editor-vim">
-            <div id="vimContent" class="view-content"></div>
-            <div class="vim-statusline" aria-hidden="true">
-              <span id="vimStatusLeft" class="vim-status-left"></span>
-              <span id="vimStatusRight" class="vim-status-right"></span>
-            </div>
+            <div id="vimPanes" class="vim-panes vim-panes-row"></div>
             <div id="vimCmdline" class="vim-cmdline" aria-live="polite"></div>
           </div>
           <!-- NANO in-terminal surface -->

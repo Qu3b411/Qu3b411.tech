@@ -32,7 +32,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const postsDropdown = document.getElementById('postsDropdown');
   const editorSurface = document.getElementById('editor-surface');
   const vimSurface = document.getElementById('vimSurface');
-  const vimContent = document.getElementById('vimContent');
   const nanoSurface = document.getElementById('nanoSurface');
   const nanoContent = document.getElementById('nanoContent');
 
@@ -65,7 +64,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const router = new Router({
     terminal, terminalEl, termContainer,
-    editorSurface, vimSurface, vimContent, nanoSurface, nanoContent,
+    editorSurface, vimSurface, nanoSurface, nanoContent,
     assetBase: ROOT.href,
   });
 
@@ -183,13 +182,26 @@ document.addEventListener('DOMContentLoaded', async () => {
   function enterEditor(mode, vp) {
     const source = vp ? router.getMarkdownForVirtualPath(vp) || '' : '';
     editor.mode = mode;
-    editor.path = vp || null;
-    editor.filename = vp ? vp.split('/').pop() : '';
-    editor.source = source;
     editor.cmdActive = false;
     editor.cmdBuf = '';
-    router.showEditor(mode, source, editor.filename);
+    editor.ctrlW = false;
+    if (mode === 'vim') {
+      editor.panes = [makePane(vp, source)];
+      editor.active = 0;
+      editor.orientation = 'row';
+      router.renderVimPanes(editor);
+    } else {
+      editor.source = source;
+      editor.filename = vp ? vp.split('/').pop() : '';
+      router.renderNano(source, editor.filename);
+    }
   }
+
+  function makePane(vp, source) {
+    return { path: vp || null, filename: vp ? vp.split('/').pop() : '', source: source || '', numbers: false };
+  }
+  const activePane = () => editor.panes[editor.active];
+  const activeContent = () => activePane() && activePane()._content;
 
   function onPathChange() {
     /* reserved */
@@ -216,8 +228,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     removePrerender();
   });
 
-  // Keep the vim status position in sync while scrolling the buffer.
-  vimContent.addEventListener('scroll', () => router.updateVimPos());
+  // (Per-pane scroll listeners are attached in router.renderVimPanes.)
 
   // Editor key handling (capture phase so xterm can't swallow the keys first).
   document.addEventListener(
@@ -234,7 +245,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   const scrollBy = (el, dy) => el.scrollBy({ top: dy });
 
   function handleVimKey(e) {
-    const el = vimContent;
+    // --- Ctrl-w pane command (two-key) ---
+    if (editor.ctrlW) {
+      e.preventDefault();
+      editor.ctrlW = false;
+      const k = (e.key || '').toLowerCase();
+      if (k === 'w' || k === 'l' || k === 'j') movePane(1);
+      else if (k === 'h' || k === 'k') movePane(-1);
+      else if (k === 'q' || k === 'c') closeActivePane();
+      else if (k === 'o') onlyActivePane();
+      else if (k === 'v') addPane('row', '');
+      else if (k === 's') addPane('column', '');
+      return;
+    }
     // --- Command-line mode (after ':') ---
     if (editor.cmdActive) {
       e.preventDefault();
@@ -262,6 +285,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       vimCmdlineEl.textContent = ':';
       return;
     }
+    if (e.ctrlKey && (e.key === 'w' || e.key === 'W')) { e.preventDefault(); editor.ctrlW = true; return; }
+    const el = activeContent();
+    if (!el) { if (!e.ctrlKey && !e.metaKey) e.preventDefault(); return; }
     const half = el.clientHeight / 2;
     const page = el.clientHeight * 0.9;
     const step = 48;
@@ -295,7 +321,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     editor.cmdActive = false;
     editor.cmdBuf = '';
     vimCmdlineEl.classList.remove('vim-cmd-active');
-    vimCmdlineEl.textContent = editor.filename ? `"${editor.filename}" [readonly]` : '';
+    const p = activePane();
+    vimCmdlineEl.textContent = p && p.filename ? `"${p.filename}" [readonly]` : '';
   }
 
   function runVimCommand(raw) {
@@ -305,29 +332,77 @@ document.addEventListener('DOMContentLoaded', async () => {
     vimCmdlineEl.classList.remove('vim-cmd-active');
     const [word, ...rest] = s.split(/\s+/);
     const arg = rest.join(' ');
-    if (['q', 'q!', 'quit', 'quit!', 'qa', 'qa!', 'quitall'].includes(word)) return exitEditor();
-    if (['wq', 'wq!', 'x', 'x!', 'xit', 'exit'].includes(word)) return exitEditor(); // read-only: just leave
+    if (['q', 'q!', 'quit', 'quit!'].includes(word)) return closeActivePane();
+    if (['qa', 'qa!', 'qall', 'qall!', 'quitall', 'quitall!'].includes(word)) return exitEditor();
+    if (['wq', 'wq!', 'x', 'x!', 'xit', 'exit'].includes(word)) return closeActivePane(); // read-only: just leave
     if (word === 'w' || word === 'write') { vimCmdlineEl.textContent = "E45: 'readonly' option is set (add ! to override)"; return; }
-    if (word === 'w!' || word === 'write!') { vimCmdlineEl.textContent = `"${editor.filename || '[No Name]'}" written`; return; }
-    if (word === 'e' || word === 'e!' || word === 'edit' || word === 'edit!') {
+    if (word === 'w!' || word === 'write!') { vimCmdlineEl.textContent = `"${(activePane() || {}).filename || '[No Name]'}" written`; return; }
+    if (['vsplit', 'vsp', 'vs', 'vnew'].includes(word)) return addPane('row', arg);
+    if (['split', 'sp', 'new'].includes(word)) return addPane('column', arg);
+    if (['only', 'on'].includes(word)) return onlyActivePane();
+    if (['e', 'e!', 'edit', 'edit!'].includes(word)) {
       if (!arg) { vimCmdlineEl.textContent = 'E32: No file name'; return; }
-      return openFileFromEditor(arg, 'vim');
+      return editInActivePane(arg);
     }
-    if (word === 'help' || word === 'h') { vimCmdlineEl.textContent = 'help: j/k scroll · gg/G top/bottom · :q to exit · qu3b411.tech'; return; }
+    if (word === 'set' || word === 'se') return vimSet(arg);
+    if (word === 'help' || word === 'h') {
+      vimCmdlineEl.textContent = 'j/k scroll · gg/G · Ctrl-w h/l switch pane · :vsplit <file> · :set number · :q';
+      return;
+    }
     if (!word) return;
     vimCmdlineEl.textContent = `E492: Not an editor command: ${s}`;
   }
 
-  // `:e <file>` / editor file open — resolve via the shell (honours cwd).
-  function openFileFromEditor(name, mode) {
-    const target = mode === 'vim' ? vimCmdlineEl : nanoMsgEl;
-    if (terminal.isDirectoryPath(name)) { target.textContent = `"${name}" is a directory`; return; }
+  // --- Pane operations ---
+  function movePane(dir) {
+    if (editor.panes.length < 2) return;
+    editor.active = (editor.active + dir + editor.panes.length) % editor.panes.length;
+    router.setActivePane(editor);
+  }
+  function closeActivePane() {
+    if (editor.panes.length <= 1) return exitEditor();
+    editor.panes.splice(editor.active, 1);
+    if (editor.active >= editor.panes.length) editor.active = editor.panes.length - 1;
+    router.renderVimPanes(editor);
+  }
+  function onlyActivePane() {
+    editor.panes = [activePane()];
+    editor.active = 0;
+    router.renderVimPanes(editor);
+  }
+  function addPane(orientation, fileArg) {
+    let pane;
+    if (fileArg) {
+      if (terminal.isDirectoryPath(fileArg)) { vimCmdlineEl.textContent = `"${fileArg}" is a directory`; return; }
+      const src = terminal.getMarkdownForFile(fileArg);
+      if (src == null) { vimCmdlineEl.textContent = `E484: Can't open file ${fileArg}`; return; }
+      const vp = terminal.getVirtualPath(fileArg);
+      pane = makePane(vp, src);
+    } else {
+      const a = activePane();
+      pane = makePane(a.path, a.source);
+    }
+    editor.orientation = orientation;
+    editor.panes.splice(editor.active + 1, 0, pane);
+    editor.active += 1;
+    router.renderVimPanes(editor);
+  }
+  function editInActivePane(name) {
+    if (terminal.isDirectoryPath(name)) { vimCmdlineEl.textContent = `"${name}" is a directory`; return; }
     const src = terminal.getMarkdownForFile(name);
-    if (src == null) { target.textContent = `E484: Can't open file ${name}`; return; }
+    if (src == null) { vimCmdlineEl.textContent = `E484: Can't open file ${name}`; return; }
     const vp = terminal.getVirtualPath(name);
-    if (postByPath[vp]) return navigate({ kind: 'article', post: postByPath[vp], editor: mode });
-    if (vp === 'about.md') return navigate({ kind: 'about', editor: mode });
-    enterEditor(mode, vp);
+    const p = activePane();
+    p.path = vp;
+    p.filename = vp.split('/').pop();
+    p.source = src;
+    router.renderVimPanes(editor);
+  }
+  function vimSet(arg) {
+    const p = activePane();
+    if (arg === 'number' || arg === 'nu') { p.numbers = true; router.renderVimPanes(editor); return; }
+    if (arg === 'nonumber' || arg === 'nonu') { p.numbers = false; router.renderVimPanes(editor); return; }
+    vimCmdlineEl.textContent = `E518: Unknown option: ${arg}`;
   }
 
   function handleNanoKey(e) {

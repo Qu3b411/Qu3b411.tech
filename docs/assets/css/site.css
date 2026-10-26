@@ -534,6 +534,38 @@ header #postsDropdownContainer {
 .vim-tilde-line { color: #2ea82e; }
 .vim-splash-line { text-align: center; }
 
+/* Split panes (:vsplit / :split). */
+.vim-panes { flex: 1; display: flex; min-height: 0; min-width: 0; }
+.vim-panes-row { flex-direction: row; }
+.vim-panes-col { flex-direction: column; }
+.vim-pane {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.vim-panes-row > .vim-pane + .vim-pane { border-left: 1px solid rgba(0, 255, 0, 0.35); }
+.vim-panes-col > .vim-pane + .vim-pane { border-top: 1px solid rgba(0, 255, 0, 0.35); }
+.vim-pane .view-content { flex: 1; min-height: 0; }
+/* The active window's status line is bright; inactive ones (StatusLineNC) dim. */
+.vim-statusline.vim-status-inactive { background-color: #0a3a0a; color: #86c986; }
+
+/* :set number — a line-number gutter on the rendered blocks. */
+.view-content.vim-numbered { counter-reset: vimln; }
+.view-content.vim-numbered > * { position: relative; padding-left: 3.2em; }
+.view-content.vim-numbered > *::before {
+  counter-increment: vimln;
+  content: counter(vimln);
+  position: absolute;
+  left: 0;
+  width: 2.6em;
+  text-align: right;
+  color: #2ea82e;
+  opacity: 0.85;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ---- Nano chrome --------------------------------------------------------- */
 .nano-titlebar {
   flex: 0 0 auto;

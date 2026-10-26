@@ -669,20 +669,11 @@ export class Terminal {
   }
 
   // Determine virtual path for view mode
+  // Resolve a file argument (relative to cwd, absolute, or ~-rooted, with any
+  // '.' / '..' / nested segments) to a canonical virtual path key such as
+  // 'blog/welcome.md', 'about.md' or '.games/snake.js'.
   getVirtualPath(file) {
-    if (file.startsWith('/')) {
-      return file.replace(/^\//, '');
-    }
-    if (this.cwdPath === '/') {
-      return file;
-    }
-    if (this.cwdPath === '/blog') {
-      return 'blog/' + file;
-    }
-    if (this.cwdPath === '/.games') {
-      return '.games/' + file;
-    }
-    return file;
+    return this.catPath(file).replace(/^\//, '');
   }
 
   openEditor(file, mode) {

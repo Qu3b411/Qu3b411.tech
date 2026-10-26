@@ -260,14 +260,13 @@ function markdownToFragment(md, assetBase) {
 }
 
 export class Router {
-  constructor({ terminal, terminalEl, termContainer, editorSurface, vimSurface, vimContent, nanoSurface, nanoContent, assetBase }) {
+  constructor({ terminal, terminalEl, termContainer, editorSurface, vimSurface, nanoSurface, nanoContent, assetBase }) {
     this.terminal = terminal;
     this.terminalEl = terminalEl;
     // DOM elements for view management
     this.termContainer = termContainer;
     this.editorSurface = editorSurface;
     this.vimSurface = vimSurface;
-    this.vimContent = vimContent;
     this.nanoSurface = nanoSurface;
     this.nanoContent = nanoContent;
     // Absolute site root for resolving in-article asset URLs from nested paths.
@@ -288,111 +287,99 @@ export class Router {
     }
   }
 
-  // Show a specific editor mode
-  showEditor(mode, source, filename) {
+  // Reveal the editor surface and the chosen mode's sub-surface.
+  enterEditorSurface(which) {
     if (this.terminalEl) this.terminalEl.classList.add('editor-active');
     this.termContainer.hidden = true;
     this.editorSurface.hidden = false;
-
-    const src = source == null ? '' : String(source);
-    const name = filename || '';
-
-    if (mode === 'vim') {
-      this.nanoSurface.hidden = true;
-      this.vimSurface.hidden = false;
-      this.renderVim(src, name);
-    } else {
-      this.vimSurface.hidden = true;
-      this.nanoSurface.hidden = false;
-      this.renderNano(src, name);
-    }
-    // Give the editor surface focus so keyboard shortcuts are reliable.
-    // This also helps prevent xterm from stealing focus.
+    this.vimSurface.hidden = which !== 'vim';
+    this.nanoSurface.hidden = which !== 'nano';
     this.editorSurface.focus();
   }
 
-  renderVim(src, name) {
-    const empty = !src.trim();
-    this.vimContent.classList.toggle('vim-empty', empty);
-    this.vimContent.replaceChildren(
-      empty ? buildVimSplash() : markdownToFragment(src, this.assetBase)
-    );
-    this.vimContent.scrollTop = 0;
-    const lines = src ? src.split(/\r?\n/).length : 0;
-    const bytes = new TextEncoder().encode(src).length;
-    const left = document.getElementById('vimStatusLeft');
-    const cmd = document.getElementById('vimCmdline');
-    if (left) left.textContent = name ? `"${name}"` : '[No Name]';
-    if (cmd) {
-      cmd.classList.remove('vim-cmd-active');
-      cmd.textContent = name ? `"${name}" [readonly] ${lines}L, ${bytes}B` : '';
-    }
-    this.updateVimPos();
+  // Build the vim window(s) from the editor state (panes / active / layout).
+  renderVimPanes(editor) {
+    this.enterEditorSurface('vim');
+    const wrap = document.getElementById('vimPanes');
+    wrap.className = 'vim-panes ' + (editor.orientation === 'column' ? 'vim-panes-col' : 'vim-panes-row');
+    wrap.replaceChildren();
+    editor.panes.forEach((pane, i) => {
+      const paneEl = document.createElement('div');
+      paneEl.className = 'vim-pane' + (i === editor.active ? ' active' : '');
+      const content = document.createElement('div');
+      content.className = 'view-content vim-pane-content';
+      const empty = !(pane.source && pane.source.trim());
+      content.classList.toggle('vim-empty', empty);
+      if (pane.numbers && !empty) content.classList.add('vim-numbered');
+      content.replaceChildren(empty ? buildVimSplash() : markdownToFragment(pane.source, this.assetBase));
+      content.addEventListener('scroll', () => {
+        if (editor.panes[editor.active] === pane) this.updateVimPos(editor);
+      });
+      const status = document.createElement('div');
+      status.className = 'vim-statusline' + (i === editor.active ? '' : ' vim-status-inactive');
+      const left = document.createElement('span');
+      left.className = 'vim-status-left';
+      left.textContent = pane.filename ? `"${pane.filename}"` : '[No Name]';
+      const right = document.createElement('span');
+      right.className = 'vim-status-right';
+      status.append(left, right);
+      paneEl.append(content, status);
+      wrap.appendChild(paneEl);
+      pane._content = content;
+      pane._status = right;
+      pane._el = paneEl;
+    });
+    this.updateVimPos(editor);
+    this.setVimCmdDefault(editor);
   }
 
-  // Vim-style position indicator (Top / Bot / All / NN%) in the status line.
-  updateVimPos() {
-    const right = document.getElementById('vimStatusRight');
-    if (!right) return;
-    const el = this.vimContent;
+  // Lightweight active-pane switch (no rebuild, preserves scroll positions).
+  setActivePane(editor) {
+    editor.panes.forEach((pane, i) => {
+      const on = i === editor.active;
+      if (pane._el) pane._el.classList.toggle('active', on);
+      if (pane._status && pane._status.parentElement) {
+        pane._status.parentElement.classList.toggle('vim-status-inactive', !on);
+      }
+    });
+    this.updateVimPos(editor);
+    this.setVimCmdDefault(editor);
+  }
+
+  // Vim-style position indicator (Top / Bot / All / NN%) for the active pane.
+  updateVimPos(editor) {
+    const pane = editor.panes[editor.active];
+    if (!pane || !pane._content || !pane._status) return;
+    const el = pane._content;
     const max = el.scrollHeight - el.clientHeight;
     let pos;
     if (max <= 1) pos = 'All';
     else if (el.scrollTop <= 1) pos = 'Top';
     else if (el.scrollTop >= max - 1) pos = 'Bot';
     else pos = Math.round((el.scrollTop / max) * 100) + '%';
-    right.textContent = pos;
+    pane._status.textContent = pos;
   }
 
-  renderNano(src, name) {
-    this.nanoContent.replaceChildren(markdownToFragment(src || '', this.assetBase));
+  setVimCmdDefault(editor) {
+    const cmd = document.getElementById('vimCmdline');
+    if (!cmd) return;
+    cmd.classList.remove('vim-cmd-active');
+    const pane = editor.panes[editor.active];
+    if (!pane) { cmd.textContent = ''; return; }
+    const lines = pane.source ? pane.source.split(/\r?\n/).length : 0;
+    const bytes = new TextEncoder().encode(pane.source || '').length;
+    cmd.textContent = pane.filename ? `"${pane.filename}" [readonly] ${lines}L, ${bytes}B` : '';
+  }
+
+  renderNano(source, filename) {
+    this.enterEditorSurface('nano');
+    const src = source == null ? '' : String(source);
+    this.nanoContent.replaceChildren(markdownToFragment(src, this.assetBase));
     this.nanoContent.scrollTop = 0;
     const f = document.getElementById('nanoTitleFile');
     const msg = document.getElementById('nanoMsg');
-    if (f) f.textContent = name || 'New Buffer';
+    if (f) f.textContent = filename || 'New Buffer';
     if (msg) msg.textContent = src ? `[ Read ${src.split(/\r?\n/).length} lines ]` : '[ New File ]';
-  }
-
-  // Load the current hash state
-  loadRoute() {
-    const hash = window.location.hash || '#root';
-    const [route, ...rest] = hash.slice(1).split('/');
-    // Determine root route
-    if (route === 'about') {
-      // About route: set cwd to root and display about content
-      this.hideEditors();
-      this.terminal.cd('/');
-      this.terminal.cat('about.md');
-      return;
-    }
-    if (route === 'blog' || route === 'root') {
-      // Show terminal; do not reset cwd
-      this.hideEditors();
-      return;
-    }
-    if (route === 'post') {
-      // Not used currently; fallback to root
-      this.hideEditors();
-      return;
-    }
-    if (route === 'vim' || route === 'nano') {
-      const mode = route;
-      const virtualPath = rest.join('/');
-      if (!virtualPath) {
-        this.hideEditors();
-        return;
-      }
-      // Determine file contents
-      const md = this.getMarkdownForVirtualPath(virtualPath);
-      if (!md) {
-        this.hideEditors();
-        return;
-      }
-      this.showEditor(mode, md);
-      return;
-    }
-    // Unknown route: just show terminal
-    this.hideEditors();
   }
 
   getMarkdownForVirtualPath(vPath) {
