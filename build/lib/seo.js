@@ -95,13 +95,23 @@ function mdToHtml(md, assetPrefix) {
   const lines = String(md).split(/\r?\n/);
   const out = [];
   let inCode = false;
+  let codeLang = '';
   let codeBuf = [];
   let listBuf = [];
+  let olBuf = [];
+  const codeHtml = () => {
+    const cls = codeLang ? ` class="language-${codeLang.replace(/[^a-z0-9+-]/g, '')}"` : '';
+    return `<pre><code${cls}>${escapeHtml(codeBuf.join('\n'))}</code></pre>`;
+  };
 
   const flushList = () => {
     if (listBuf.length) {
       out.push('<ul>' + listBuf.map((li) => `<li>${inline(li)}</li>`).join('') + '</ul>');
       listBuf = [];
+    }
+    if (olBuf.length) {
+      out.push('<ol>' + olBuf.map((li) => `<li>${inline(li)}</li>`).join('') + '</ol>');
+      olBuf = [];
     }
   };
 
@@ -156,13 +166,16 @@ function mdToHtml(md, assetPrefix) {
 
   for (let li = 0; li < lines.length; li++) {
     const line = lines[li];
-    if (/^```/.test(line)) {
+    const fence = /^```(.*)$/.exec(line);
+    if (fence) {
       if (inCode) {
-        out.push(`<pre><code>${escapeHtml(codeBuf.join('\n'))}</code></pre>`);
+        out.push(codeHtml());
         codeBuf = [];
+        codeLang = '';
         inCode = false;
       } else {
         flushList();
+        codeLang = fence[1].trim().toLowerCase();
         inCode = true;
       }
       continue;
@@ -198,19 +211,32 @@ function mdToHtml(md, assetPrefix) {
       out.push('<blockquote><p>' + quote.join('<br />') + '</p></blockquote>');
       continue;
     }
+    // Horizontal rule.
+    if (/^\s*([-*_])\1\1+\s*$/.test(line)) {
+      flushList();
+      out.push('<hr />');
+      continue;
+    }
     if (/^\s*-\s+/.test(line)) {
+      if (olBuf.length) flushList();
       listBuf.push(line.replace(/^\s*-\s+/, ''));
+      continue;
+    }
+    if (/^\s*\d+\.\s+/.test(line)) {
+      if (listBuf.length) flushList();
+      olBuf.push(line.replace(/^\s*\d+\.\s+/, ''));
       continue;
     }
     flushList();
     const trimmed = line.trim();
     if (!trimmed) continue;
-    if (/^### /.test(line)) out.push(`<h3>${inline(line.slice(4).trim())}</h3>`);
+    if (/^#### /.test(line)) out.push(`<h4>${inline(line.slice(5).trim())}</h4>`);
+    else if (/^### /.test(line)) out.push(`<h3>${inline(line.slice(4).trim())}</h3>`);
     else if (/^## /.test(line)) out.push(`<h2>${inline(line.slice(3).trim())}</h2>`);
     else if (/^# /.test(line)) out.push(`<h1>${inline(line.slice(2).trim())}</h1>`);
     else out.push(`<p>${inline(trimmed)}</p>`);
   }
-  if (inCode) out.push(`<pre><code>${escapeHtml(codeBuf.join('\n'))}</code></pre>`);
+  if (inCode) out.push(codeHtml());
   flushList();
   return out.join('\n');
 }
@@ -351,18 +377,13 @@ ${bodyHtml}
   });
 }
 
-function renderBlogIndexPage({ site, posts, slugOf, prefix, shellHtml, extraPages = [] }) {
+function renderBlogIndexPage({ site, posts, slugOf, prefix, shellHtml }) {
   const url = `${site.url}/blog/`;
-  // Normal posts and self-contained "rich" pages (e.g. /clickfix/) merge into
-  // one date-sorted listing; rich pages carry their own absolute href.
-  const entries = [
-    ...posts.map((p) => ({ href: `${prefix}blog/${slugOf(p)}/`, title: p.title, date: p.date, summary: p.summary })),
-    ...extraPages.map((p) => ({ href: p.url, title: p.title, date: p.date, summary: p.summary })),
-  ].sort((a, b) => (a.date < b.date ? 1 : -1));
-  const items = entries
+  const sorted = [...posts].sort((a, b) => (a.date < b.date ? 1 : -1));
+  const items = sorted
     .map(
       (p) =>
-        `          <li>\n            <a href="${escapeHtml(p.href)}">${escapeHtml(p.title)}</a>\n            <span class="post-date">${escapeHtml(p.date)}</span>\n            <span class="post-summary">${escapeHtml(p.summary || '')}</span>\n          </li>`
+        `          <li>\n            <a href="${prefix}blog/${slugOf(p)}/">${escapeHtml(p.title)}</a>\n            <span class="post-date">${escapeHtml(p.date)}</span>\n            <span class="post-summary">${escapeHtml(p.summary || '')}</span>\n          </li>`
     )
     .join('\n');
   const headInner = buildHead({
@@ -453,14 +474,13 @@ function renderHomeHead({ site, posts, slugOf }) {
   ].join('\n    ');
 }
 
-function renderSitemap({ site, posts, slugOf, extraPages = [] }) {
+function renderSitemap({ site, posts, slugOf }) {
   const today = new Date().toISOString().slice(0, 10);
   const urls = [
     { loc: `${site.url}/`, lastmod: today, priority: '1.0' },
     { loc: `${site.url}/blog/`, lastmod: today, priority: '0.7' },
     { loc: `${site.url}/about/`, lastmod: today, priority: '0.5' },
     ...posts.map((p) => ({ loc: `${site.url}/blog/${slugOf(p)}/`, lastmod: p.date, priority: '0.8' })),
-    ...extraPages.map((p) => ({ loc: `${site.url}${p.url}`, lastmod: p.date, priority: '0.8' })),
   ];
   const body = urls
     .map(

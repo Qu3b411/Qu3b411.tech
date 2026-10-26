@@ -6,7 +6,14 @@
     <atom:link href="https://qu3b411.tech/feed.xml" rel="self" type="application/rss+xml" />
     <description>A terminal-style tech blog by qu3b411 — notes, tricks, and write-ups served from an interactive in-browser shell.</description>
     <language>en</language>
-    <lastBuildDate>Thu, 02 Jan 2025 00:00:00 GMT</lastBuildDate>
+    <lastBuildDate>Thu, 08 Oct 2026 00:00:00 GMT</lastBuildDate>
+    <item>
+      <title>A ClickFix GPT, a weaponized MSI, and the implant that RickRolled itself</title>
+      <link>https://qu3b411.tech/blog/clickfix/</link>
+      <guid isPermaLink="true">https://qu3b411.tech/blog/clickfix/</guid>
+      <pubDate>Thu, 08 Oct 2026 00:00:00 GMT</pubDate>
+      <description>A malicious Custom GPT reached through a Google ad led to a ClickFix lure — MSI teardown, C2 reconstruction, and an isolated Rickroll lab replay.</description>
+    </item>
     <item>
       <title>Terminal Tricks</title>
       <link>https://qu3b411.tech/blog/terminal-tricks/</link>

@@ -22,5 +22,13 @@
     "path": "blog/kernelcon-2019.md",
     "date": "2019-10-30",
     "summary": "Writeups for the KernelCon 2019 CTF challenges: setup, reversing, and the DNA puzzle."
+  },
+  {
+    "id": "clickfix",
+    "title": "A ClickFix GPT, a weaponized MSI, and the implant that RickRolled itself",
+    "file": "clickfix.md",
+    "path": "blog/clickfix.md",
+    "date": "2026-10-08",
+    "summary": "A malicious Custom GPT reached through a Google ad led to a ClickFix lure — MSI teardown, C2 reconstruction, and an isolated Rickroll lab replay."
   }
 ]

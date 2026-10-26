@@ -379,6 +379,97 @@ header #postsDropdownContainer {
   overflow-x: hidden;
 }
 
+/* ---- Rendered-file prose inside the vim/nano view -----------------------
+   A markdown file opened in the editor: rendered, but still reading like a
+   document in the terminal — green theme, generous spacing, real tables,
+   clickable links, images, and scrollable code blocks. */
+/* Rendered block elements wrap normally (the container keeps pre-wrap for the
+   raw code/game views). Content fills the full panel width like a vim buffer;
+   wide media is contained at the edge rather than capped to a narrow column. */
+.editor-view .view-content > * {
+  white-space: normal;
+}
+.editor-view .view-content h1,
+.editor-view .view-content h2,
+.editor-view .view-content h3,
+.editor-view .view-content h4 {
+  color: var(--terminal-green, #00ff00);
+  line-height: 1.25;
+  margin: 1.4em 0 0.5em;
+}
+.editor-view .view-content h1 { font-size: 1.6rem; border-bottom: 1px solid rgba(0, 255, 0, 0.3); padding-bottom: 0.25em; }
+.editor-view .view-content h2 { font-size: 1.3rem; border-bottom: 1px solid rgba(0, 255, 0, 0.18); padding-bottom: 0.2em; }
+.editor-view .view-content h3 { font-size: 1.12rem; }
+.editor-view .view-content h4 { font-size: 1rem; opacity: 0.92; }
+.editor-view .view-content p { margin: 0.7em 0; line-height: 1.6; }
+.editor-view .view-content ul,
+.editor-view .view-content ol { margin: 0.7em 0; padding-left: 1.6em; }
+.editor-view .view-content li { margin: 0.3em 0; line-height: 1.55; }
+.editor-view .view-content a {
+  color: #6cff6c;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.editor-view .view-content a:hover { background-color: rgba(0, 255, 0, 0.12); }
+.editor-view .view-content code {
+  background-color: rgba(0, 255, 0, 0.1);
+  padding: 0.05em 0.35em;
+  border-radius: 3px;
+  font-size: 0.92em;
+}
+.editor-view .view-content pre {
+  white-space: pre;
+  overflow-x: auto;
+  background-color: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(0, 255, 0, 0.22);
+  border-radius: 6px;
+  padding: 0.8em 1em;
+  margin: 1em 0;
+  line-height: 1.5;
+}
+.editor-view .view-content pre code { background: none; padding: 0; }
+.editor-view .view-content blockquote {
+  margin: 1em 0;
+  padding: 0.5em 1em;
+  border-left: 3px solid var(--terminal-green, #00ff00);
+  background-color: rgba(0, 0, 0, 0.4);
+}
+.editor-view .view-content blockquote p { margin: 0; }
+.editor-view .view-content hr {
+  border: 0;
+  border-top: 1px solid rgba(0, 255, 0, 0.25);
+  margin: 1.6em 0;
+}
+.editor-view .view-content img {
+  display: block;
+  max-width: 100%;
+  max-height: 72vh;
+  width: auto;
+  height: auto;
+  border: 1px solid rgba(0, 255, 0, 0.25);
+  border-radius: 5px;
+  margin: 0.8em 0;
+}
+.editor-view .view-content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1.1em 0;
+  font-size: 0.92rem;
+  display: block;
+  overflow-x: auto;
+}
+.editor-view .view-content th,
+.editor-view .view-content td {
+  border: 1px solid rgba(0, 255, 0, 0.25);
+  padding: 0.4em 0.6em;
+  text-align: left;
+}
+.editor-view .view-content thead th {
+  color: var(--terminal-green, #00ff00);
+  background-color: rgba(0, 255, 0, 0.08);
+}
+.editor-view .view-content tbody tr:nth-child(even) td { background-color: rgba(0, 255, 0, 0.03); }
+
 /* Nano bottom command bar */
 .nano-bottom-bar {
   position: sticky;
