@@ -351,13 +351,18 @@ ${bodyHtml}
   });
 }
 
-function renderBlogIndexPage({ site, posts, slugOf, prefix, shellHtml }) {
+function renderBlogIndexPage({ site, posts, slugOf, prefix, shellHtml, extraPages = [] }) {
   const url = `${site.url}/blog/`;
-  const sorted = [...posts].sort((a, b) => (a.date < b.date ? 1 : -1));
-  const items = sorted
+  // Normal posts and self-contained "rich" pages (e.g. /clickfix/) merge into
+  // one date-sorted listing; rich pages carry their own absolute href.
+  const entries = [
+    ...posts.map((p) => ({ href: `${prefix}blog/${slugOf(p)}/`, title: p.title, date: p.date, summary: p.summary })),
+    ...extraPages.map((p) => ({ href: p.url, title: p.title, date: p.date, summary: p.summary })),
+  ].sort((a, b) => (a.date < b.date ? 1 : -1));
+  const items = entries
     .map(
       (p) =>
-        `          <li>\n            <a href="${prefix}blog/${slugOf(p)}/">${escapeHtml(p.title)}</a>\n            <span class="post-date">${escapeHtml(p.date)}</span>\n            <span class="post-summary">${escapeHtml(p.summary || '')}</span>\n          </li>`
+        `          <li>\n            <a href="${escapeHtml(p.href)}">${escapeHtml(p.title)}</a>\n            <span class="post-date">${escapeHtml(p.date)}</span>\n            <span class="post-summary">${escapeHtml(p.summary || '')}</span>\n          </li>`
     )
     .join('\n');
   const headInner = buildHead({
@@ -448,13 +453,14 @@ function renderHomeHead({ site, posts, slugOf }) {
   ].join('\n    ');
 }
 
-function renderSitemap({ site, posts, slugOf }) {
+function renderSitemap({ site, posts, slugOf, extraPages = [] }) {
   const today = new Date().toISOString().slice(0, 10);
   const urls = [
     { loc: `${site.url}/`, lastmod: today, priority: '1.0' },
     { loc: `${site.url}/blog/`, lastmod: today, priority: '0.7' },
     { loc: `${site.url}/about/`, lastmod: today, priority: '0.5' },
     ...posts.map((p) => ({ loc: `${site.url}/blog/${slugOf(p)}/`, lastmod: p.date, priority: '0.8' })),
+    ...extraPages.map((p) => ({ loc: `${site.url}${p.url}`, lastmod: p.date, priority: '0.8' })),
   ];
   const body = urls
     .map(

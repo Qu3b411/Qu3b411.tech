@@ -1,0 +1,42 @@
+/* ClickFix-specific advisory, evidence, and video styling. */
+.clickfix-content > h1:first-child {
+  margin: 0 0 1.2rem;
+  color: #f6f8fa;
+  font-size: clamp(2.25rem, 4vw, 3.7rem);
+  line-height: 1.1;
+}
+.clickfix-content > h1:first-child::before {
+  content: "MALWARE RESEARCH / PUBLIC ADVISORY";
+  display: block;
+  margin-bottom: .85rem;
+  color: var(--warning);
+  font: 750 .68rem/1.4 ui-monospace, SFMono-Regular, Consolas, monospace;
+  letter-spacing: .14em;
+}
+.clickfix-content > h1 + p { color: var(--soft); font-size: 1.15rem; }
+.clickfix-content > h1 + p + p { color: var(--muted); font: 600 .82rem/1.6 system-ui, sans-serif; }
+.clickfix-content > h1 + p + p + p {
+  padding: .85rem 1rem;
+  border: 1px solid #765944;
+  border-radius: 5px;
+  background: #30251f;
+  font: 600 .84rem/1.65 system-ui, sans-serif;
+}
+.clickfix-content h2 { padding-top: .65rem; border-top: 3px solid var(--accent); }
+.clickfix-content .callout {
+  margin: 1.6rem 0;
+  padding: 1.1rem 1.3rem;
+  border: 1px solid #75523c;
+  border-left: 4px solid var(--warning);
+  border-radius: 5px;
+  background: #30231e;
+}
+.clickfix-content .callout--danger strong { color: #ffd0b0; }
+.clickfix-content figure img { display: block; border: 1px solid var(--line); border-radius: 5px; }
+.clickfix-content .video-embed { padding: 1rem; border: 1px solid var(--line); border-radius: 7px; background: var(--code-bg); }
+.clickfix-content .video-embed iframe { display: block; width: 100%; height: auto; aspect-ratio: 16/9; border: 0; border-radius: 4px; }
+.clickfix-content .video-embed > p { margin: .7rem 0 0; font: 600 .88rem/1.5 system-ui, sans-serif; }
+.clickfix-content .video-embed figcaption { color: var(--soft); }
+@media (max-width: 560px) {
+  .clickfix-content > h1:first-child { font-size: 2.2rem; }
+}

@@ -120,11 +120,29 @@ function build() {
     );
   });
 
+  // Self-contained "rich" pages vendored under content/<name>/ and copied
+  // verbatim to docs/<name>/ (own CSS/assets, outside the markdown pipeline).
+  // They are listed in the blog index and sitemap but render their own design.
+  const richPages = [
+    {
+      name: 'clickfix',
+      url: '/clickfix/',
+      title: 'A ClickFix GPT, a weaponized MSI, and the implant that RickRolled itself',
+      date: '2026-10-08',
+      summary:
+        'A malicious Custom GPT reached through a Google ad led to a ClickFix lure — MSI teardown, C2 reconstruction, and an isolated Rickroll lab replay.',
+    },
+  ];
+  richPages.forEach((rp) => {
+    const srcPath = path.join(contentDir, rp.name);
+    if (fs.existsSync(srcPath)) copyDir(srcPath, path.join(docsDir, rp.name));
+  });
+
   // Crawlable /blog/ hub and /about/ page.
   ensureDir(path.join(docsDir, 'blog'));
   fs.writeFileSync(
     path.join(docsDir, 'blog', 'index.html'),
-    seo.renderBlogIndexPage({ site, posts: bundle.posts, slugOf, prefix: '../', shellHtml: shellFor('../') })
+    seo.renderBlogIndexPage({ site, posts: bundle.posts, slugOf, prefix: '../', shellHtml: shellFor('../'), extraPages: richPages })
   );
   ensureDir(path.join(docsDir, 'about'));
   fs.writeFileSync(
@@ -136,7 +154,7 @@ function build() {
   fs.writeFileSync(path.join(docsDir, '404.html'), seo.render404Page({ site }));
 
   // sitemap.xml, robots.txt, RSS feed.xml at the site root.
-  fs.writeFileSync(path.join(docsDir, 'sitemap.xml'), seo.renderSitemap({ site, posts: bundle.posts, slugOf }));
+  fs.writeFileSync(path.join(docsDir, 'sitemap.xml'), seo.renderSitemap({ site, posts: bundle.posts, slugOf, extraPages: richPages }));
   fs.writeFileSync(path.join(docsDir, 'robots.txt'), seo.renderRobots({ site }));
   fs.writeFileSync(path.join(docsDir, 'feed.xml'), seo.renderFeed({ site, posts: bundle.posts, slugOf }));
 

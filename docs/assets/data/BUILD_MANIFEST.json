@@ -48,12 +48,18 @@
   "assets/xterm/.gitkeep": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
   "assets/xterm/xterm.css": "f6603a9878dafe03d016b84739755768758db482019efaf454a4486cd8171eba",
   "assets/xterm/xterm.js": "f0aea0f75f48559013ae6643c2479dd737d26da42d5524e6d2b70915ae6523c7",
-  "blog/index.html": "db48bbbb9c330bb71e0efa98213c93f5ae460c7ebf915408f8d6d991ec7f53cf",
+  "blog/index.html": "2366d16923dee09cc65e502a97cb2aea947f655106314ead4a2a37b2f946d7c8",
   "blog/kernelcon-2019/index.html": "9df488ec42ca869cecf10363c8a00deb82480743324ca24610bbb92f7eef34a0",
   "blog/terminal-tricks/index.html": "ebd6c763732c2f706e7ec7716f451559c56c98ec77a24bbca96c43377b67ed21",
   "blog/welcome/index.html": "bf5626fbdd9885a0d8ab5ff0355c1e77981e7a525f813f7dee39d14a6c53f0db",
+  "clickfix/assets/clickfix/fake-cloudflare-verification.png": "fd38b06e96f86e0c60de11d118acca9cb6932c013876a767d0bd2b5db4161359",
+  "clickfix/assets/clickfix/google-sponsored-result-later.png": "038aba733958577c34fba31482935ef21f15a17144be87c19fcade9d579ca40d",
+  "clickfix/css/clickfix.css": "06952f5ae630e2f59f308ca2ddde67912168c5ecf7457a13a211d4300577220e",
+  "clickfix/css/main.css": "2377d250babc70333000d4db5c245612aa15b412a692dc22214565efb37f0baf",
+  "clickfix/favicon.svg": "f586a0bec5f535cf1c543c5429e0ff4cbe09c8dfd9936feb297f7d6a38ea9ece",
+  "clickfix/index.html": "bd0a7ed539db3b2dccbcaaf7191f915d99b3e0ffba4c8fd9c34062fc2fdcd184",
   "feed.xml": "371dc47aa4f261f1b590a7d77472957fc910424263ceafa8e4b0708ce5653445",
   "index.html": "8ff6199876539d9a11bb28f7e1f75e82458b8848e2501d59e36929445709e2d1",
   "robots.txt": "fa219ad39ce529dcb0cf7b3facd079068745424069c3b3c0008f37a0cb726b96",
-  "sitemap.xml": "6d2f94eff3cb818823a69c724d4e3100d9479e4b17ce57547ba1c699b9f0db50"
+  "sitemap.xml": "e55fbbd836f846da9f38186fa4b69f88f059d832a61b02dfdda52e8279a05391"
 }
