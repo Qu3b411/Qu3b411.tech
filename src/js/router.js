@@ -312,6 +312,7 @@ export class Router {
       content.classList.toggle('vim-empty', empty);
       if (pane.numbers && !empty) content.classList.add('vim-numbered');
       content.replaceChildren(empty ? buildVimSplash() : markdownToFragment(pane.source, this.assetBase));
+      if (!empty) this.highlightCode(content);
       content.addEventListener('scroll', () => {
         if (editor.panes[editor.active] === pane) this.updateVimPos(editor);
       });
@@ -371,10 +372,32 @@ export class Router {
     cmd.textContent = pane.filename ? `"${pane.filename}" [readonly] ${lines}L, ${bytes}B` : '';
   }
 
+  // Syntax-highlight fenced code blocks with the self-hosted highlight.js.
+  // Unknown languages are left as plain text. Called after each render.
+  highlightCode(root) {
+    const hljs = window.hljs;
+    if (!hljs || !root) return;
+    root.querySelectorAll('pre code[class*="language-"]').forEach((block) => {
+      const m = block.className.match(/language-([\w+#-]+)/i);
+      if (!m) return;
+      let lang = m[1].toLowerCase();
+      if (lang === 'console') lang = 'shell';
+      else if (lang === 'ps' || lang === 'ps1') lang = 'powershell';
+      if (!hljs.getLanguage(lang)) return;
+      try {
+        block.innerHTML = hljs.highlight(block.textContent, { language: lang, ignoreIllegals: true }).value;
+        block.classList.add('hljs');
+      } catch (e) {
+        /* leave the block as plain text */
+      }
+    });
+  }
+
   renderNano(source, filename) {
     this.enterEditorSurface('nano');
     const src = source == null ? '' : String(source);
     this.nanoContent.replaceChildren(markdownToFragment(src, this.assetBase));
+    this.highlightCode(this.nanoContent);
     this.nanoContent.scrollTop = 0;
     const f = document.getElementById('nanoTitleFile');
     const msg = document.getElementById('nanoMsg');

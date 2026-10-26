@@ -300,6 +300,7 @@ ${prerenderHtml}
     </div>
     ${shellHtml}
     <script src="${prefix}assets/xterm/xterm.js"></script>
+    <script src="${prefix}assets/vendor/highlight.min.js"></script>
     <script type="module" src="${prefix}assets/js/app.js"></script>
   </body>
 </html>

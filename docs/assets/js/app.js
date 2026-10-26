@@ -49,10 +49,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     path: null, // virtual path, or null for an empty [No Name] buffer
     filename: '',
     source: '',
-    cmdActive: false, // vim command-line mode
+    cmdActive: false, // vim command-line mode (':')
+    searchActive: false, // vim search-input mode ('/')
     cmdBuf: '',
     lastG: 0,
     lastZ: 0,
+    ctrlW: false,
+    panes: [],
+    active: 0,
+    orientation: 'row',
+    search: { pattern: '', matches: [], index: -1 }, // vim hlsearch (active pane)
+    nanoSearch: { active: false, buf: '', pattern: '', matches: [], index: -1 },
   };
 
   const terminal = new Terminal({
@@ -258,21 +265,27 @@ document.addEventListener('DOMContentLoaded', async () => {
       else if (k === 's') addPane('column', '');
       return;
     }
-    // --- Command-line mode (after ':') ---
-    if (editor.cmdActive) {
+    // --- Prompt mode (command ':' or search '/') ---
+    if (editor.cmdActive || editor.searchActive) {
       e.preventDefault();
       e.stopPropagation();
-      if (e.key === 'Enter') return runVimCommand(editor.cmdBuf);
-      if (e.key === 'Escape') return endVimCommand();
+      const prefix = editor.cmdActive ? ':' : '/';
+      if (e.key === 'Enter') {
+        const buf = editor.cmdBuf;
+        if (editor.cmdActive) { editor.cmdActive = false; return runVimCommand(buf); }
+        editor.searchActive = false;
+        return performVimSearch(buf);
+      }
+      if (e.key === 'Escape') return endPrompt();
       if (e.key === 'Backspace') {
-        if (!editor.cmdBuf) return endVimCommand();
+        if (!editor.cmdBuf) return endPrompt();
         editor.cmdBuf = editor.cmdBuf.slice(0, -1);
-        vimCmdlineEl.textContent = ':' + editor.cmdBuf;
+        vimCmdlineEl.textContent = prefix + editor.cmdBuf;
         return;
       }
       if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
         editor.cmdBuf += e.key;
-        vimCmdlineEl.textContent = ':' + editor.cmdBuf;
+        vimCmdlineEl.textContent = prefix + editor.cmdBuf;
       }
       return;
     }
@@ -283,6 +296,24 @@ document.addEventListener('DOMContentLoaded', async () => {
       editor.cmdBuf = '';
       vimCmdlineEl.classList.add('vim-cmd-active');
       vimCmdlineEl.textContent = ':';
+      return;
+    }
+    if (e.key === '/' && !e.ctrlKey && !e.metaKey) {
+      e.preventDefault();
+      editor.searchActive = true;
+      editor.cmdBuf = '';
+      vimCmdlineEl.classList.add('vim-cmd-active');
+      vimCmdlineEl.textContent = '/';
+      return;
+    }
+    if (e.key === 'n' && !e.ctrlKey && !e.metaKey) { e.preventDefault(); vimSearchStep(1); return; }
+    if (e.key === 'N' && !e.ctrlKey && !e.metaKey) { e.preventDefault(); vimSearchStep(-1); return; }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      clearVimSearchHighlight();
+      editor.ctrlW = false; editor.lastG = 0; editor.lastZ = 0;
+      const p = activePane();
+      vimCmdlineEl.textContent = p && p.filename ? `"${p.filename}" [readonly]` : '';
       return;
     }
     if (e.ctrlKey && (e.key === 'w' || e.key === 'W')) { e.preventDefault(); editor.ctrlW = true; return; }
@@ -317,12 +348,98 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.length === 1) e.preventDefault();
   }
 
-  function endVimCommand() {
+  function endPrompt() {
     editor.cmdActive = false;
+    editor.searchActive = false;
     editor.cmdBuf = '';
     vimCmdlineEl.classList.remove('vim-cmd-active');
     const p = activePane();
     vimCmdlineEl.textContent = p && p.filename ? `"${p.filename}" [readonly]` : '';
+  }
+
+  // --- Search highlighting (shared by vim and nano) ---
+  function clearHighlights(container, cls) {
+    if (!container) return;
+    container.querySelectorAll('.' + cls).forEach((span) => {
+      span.replaceWith(document.createTextNode(span.textContent));
+    });
+    container.normalize();
+  }
+  function highlightMatches(container, pattern, cls) {
+    clearHighlights(container, cls);
+    const matches = [];
+    if (!container || !pattern) return matches;
+    // smartcase: case-insensitive unless the pattern contains an uppercase letter
+    const ci = pattern === pattern.toLowerCase();
+    const needle = ci ? pattern.toLowerCase() : pattern;
+    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
+      acceptNode: (n) => (n.nodeValue && n.nodeValue.length ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT),
+    });
+    const nodes = [];
+    let tn;
+    while ((tn = walker.nextNode())) nodes.push(tn);
+    nodes.forEach((node) => {
+      const hay = ci ? node.nodeValue.toLowerCase() : node.nodeValue;
+      let idx = hay.indexOf(needle);
+      if (idx < 0) return;
+      const frag = document.createDocumentFragment();
+      let last = 0;
+      while (idx >= 0) {
+        if (idx > last) frag.appendChild(document.createTextNode(node.nodeValue.slice(last, idx)));
+        const span = document.createElement('span');
+        span.className = cls;
+        span.textContent = node.nodeValue.slice(idx, idx + pattern.length);
+        frag.appendChild(span);
+        matches.push(span);
+        last = idx + pattern.length;
+        idx = hay.indexOf(needle, last);
+      }
+      if (last < node.nodeValue.length) frag.appendChild(document.createTextNode(node.nodeValue.slice(last)));
+      node.replaceWith(frag);
+    });
+    return matches;
+  }
+
+  // --- Vim search (/, n, N, :noh) on the active pane ---
+  function performVimSearch(pattern) {
+    vimCmdlineEl.classList.remove('vim-cmd-active');
+    const pat = pattern || editor.search.pattern;
+    const content = activeContent();
+    if (!content) return;
+    if (!pat) { vimCmdlineEl.textContent = 'E35: No previous regular expression'; return; }
+    editor.search.pattern = pat;
+    editor.search.matches = highlightMatches(content, pat, 'vim-search-match');
+    if (!editor.search.matches.length) {
+      editor.search.index = -1;
+      vimCmdlineEl.textContent = `E486: Pattern not found: ${pat}`;
+      return;
+    }
+    setVimCurrentMatch(0);
+    vimCmdlineEl.textContent = `/${pat}`;
+  }
+  function setVimCurrentMatch(i) {
+    const { matches } = editor.search;
+    if (!matches.length) return;
+    matches.forEach((m) => m.classList.remove('vim-search-current'));
+    editor.search.index = (i + matches.length) % matches.length;
+    const cur = matches[editor.search.index];
+    cur.classList.add('vim-search-current');
+    cur.scrollIntoView({ block: 'center' });
+  }
+  function vimSearchStep(dir) {
+    if (!editor.search.matches.length) {
+      if (editor.search.pattern) return performVimSearch(editor.search.pattern);
+      vimCmdlineEl.textContent = 'E35: No previous regular expression';
+      return;
+    }
+    setVimCurrentMatch(editor.search.index + dir);
+    vimCmdlineEl.textContent = `/${editor.search.pattern}  [${editor.search.index + 1}/${editor.search.matches.length}]`;
+  }
+  function clearVimSearchHighlight() {
+    const content = activeContent();
+    if (content) clearHighlights(content, 'vim-search-match');
+    editor.search.matches = [];
+    editor.search.index = -1;
   }
 
   function runVimCommand(raw) {
@@ -345,6 +462,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       return editInActivePane(arg);
     }
     if (word === 'set' || word === 'se') return vimSet(arg);
+    if (['noh', 'nohl', 'nohlsearch'].includes(word)) { clearVimSearchHighlight(); vimCmdlineEl.textContent = ''; return; }
     if (word === 'help' || word === 'h') {
       vimCmdlineEl.textContent = 'j/k scroll · gg/G · Ctrl-w h/l switch pane · :vsplit <file> · :set number · :q';
       return;
@@ -407,8 +525,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function handleNanoKey(e) {
     const el = nanoContent;
+    const ns = editor.nanoSearch;
+    // --- Search input mode (after ^W) ---
+    if (ns.active) {
+      e.preventDefault(); e.stopPropagation();
+      const ctrlC = (e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C');
+      if (e.key === 'Enter') return runNanoSearch(ns.buf);
+      if (e.key === 'Escape' || ctrlC) { ns.active = false; nanoMsgEl.textContent = '[ Cancelled ]'; return; }
+      if (e.key === 'Backspace') { ns.buf = ns.buf.slice(0, -1); updateNanoSearchPrompt(); return; }
+      if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) { ns.buf += e.key; updateNanoSearchPrompt(); }
+      return;
+    }
     const ctrl = e.ctrlKey || e.metaKey;
     if (ctrl && (e.key === 'x' || e.key === 'X')) { e.preventDefault(); e.stopPropagation(); return exitEditor(); }
+    if (ctrl && (e.key === 'w' || e.key === 'W')) { e.preventDefault(); e.stopPropagation(); startNanoSearch(); return; }
     if (ctrl && (e.key === 'c' || e.key === 'C')) {
       e.preventDefault(); e.stopPropagation();
       const max = el.scrollHeight - el.clientHeight;
@@ -419,15 +549,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     if (ctrl && (e.key === 'g' || e.key === 'G')) {
       e.preventDefault(); e.stopPropagation();
-      nanoMsgEl.textContent = '[ ^X Exit · ^C Location · arrows/space scroll · read-only preview ]';
+      nanoMsgEl.textContent = '[ ^X Exit · ^W Search · ^C Location · arrows/space scroll · read-only ]';
       return;
     }
-    if (ctrl && 'owktr\\'.includes((e.key || '').toLowerCase())) {
+    if (ctrl && 'oktr\\'.includes((e.key || '').toLowerCase())) {
       e.preventDefault(); e.stopPropagation();
       nanoMsgEl.textContent = '[ read-only buffer: writing/cut/replace disabled ]';
       return;
     }
-    const half = el.clientHeight / 2;
     const page = el.clientHeight * 0.9;
     const step = 48;
     const nav = { ArrowDown: step, ArrowUp: -step, ' ': page, PageDown: page, PageUp: -page };
@@ -440,8 +569,40 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  // --- Nano search (^W) ---
+  function startNanoSearch() {
+    editor.nanoSearch.active = true;
+    editor.nanoSearch.buf = '';
+    updateNanoSearchPrompt();
+  }
+  function updateNanoSearchPrompt() {
+    const ns = editor.nanoSearch;
+    const def = ns.pattern ? ` [${ns.pattern}]` : '';
+    nanoMsgEl.textContent = `Search${def}: ${ns.buf}`;
+  }
+  function runNanoSearch(buf) {
+    const ns = editor.nanoSearch;
+    ns.active = false;
+    const pat = buf || ns.pattern;
+    if (!pat) { nanoMsgEl.textContent = '[ Cancelled ]'; return; }
+    if (pat !== ns.pattern || !ns.matches.length) {
+      ns.pattern = pat;
+      ns.matches = highlightMatches(nanoContent, pat, 'nano-search-match');
+      ns.index = -1;
+    }
+    if (!ns.matches.length) { nanoMsgEl.textContent = `[ "${pat}" not found ]`; return; }
+    ns.matches.forEach((m) => m.classList.remove('vim-search-current'));
+    ns.index = (ns.index + 1) % ns.matches.length;
+    const cur = ns.matches[ns.index];
+    cur.classList.add('vim-search-current');
+    cur.scrollIntoView({ block: 'center' });
+    nanoMsgEl.textContent = `[ match ${ns.index + 1}/${ns.matches.length}: ${pat} ]`;
+  }
+
   function exitEditor() {
     editor.cmdActive = false;
+    editor.searchActive = false;
+    editor.nanoSearch.active = false;
     editor.mode = null;
     navigate({ kind: 'home' });
   }

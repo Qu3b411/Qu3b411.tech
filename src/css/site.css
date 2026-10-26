@@ -551,6 +551,41 @@ header #postsDropdownContainer {
 /* The active window's status line is bright; inactive ones (StatusLineNC) dim. */
 .vim-statusline.vim-status-inactive { background-color: #0a3a0a; color: #86c986; }
 
+/* Syntax highlighting (highlight.js tokens) — tuned for the dark terminal. */
+.view-content pre code .hljs-comment,
+.view-content pre code .hljs-quote { color: #6a9e62; font-style: italic; }
+.view-content pre code .hljs-keyword,
+.view-content pre code .hljs-selector-tag,
+.view-content pre code .hljs-literal,
+.view-content pre code .hljs-section,
+.view-content pre code .hljs-name { color: #7cc7ff; }
+.view-content pre code .hljs-string,
+.view-content pre code .hljs-attr,
+.view-content pre code .hljs-regexp,
+.view-content pre code .hljs-addition { color: #c3e88d; }
+.view-content pre code .hljs-number,
+.view-content pre code .hljs-literal,
+.view-content pre code .hljs-built_in { color: #f5b96b; }
+.view-content pre code .hljs-title,
+.view-content pre code .hljs-title.function_,
+.view-content pre code .hljs-type,
+.view-content pre code .hljs-class .hljs-title { color: #e6db74; }
+.view-content pre code .hljs-variable,
+.view-content pre code .hljs-template-variable,
+.view-content pre code .hljs-params { color: #9cdcfe; }
+.view-content pre code .hljs-meta,
+.view-content pre code .hljs-meta .hljs-keyword { color: #c99bdd; }
+.view-content pre code .hljs-symbol,
+.view-content pre code .hljs-bullet,
+.view-content pre code .hljs-deletion { color: #ff8e8e; }
+.view-content pre code .hljs-emphasis { font-style: italic; }
+.view-content pre code .hljs-strong { font-weight: 700; }
+
+/* Search highlighting (vim hlsearch / nano). */
+.vim-search-match,
+.nano-search-match { background-color: rgba(255, 221, 51, 0.32); color: inherit; border-radius: 2px; }
+.vim-search-current { background-color: #ff9632; color: #04120a; border-radius: 2px; }
+
 /* :set number — a line-number gutter on the rendered blocks. */
 .view-content.vim-numbered { counter-reset: vimln; }
 .view-content.vim-numbered > * { position: relative; padding-left: 3.2em; }

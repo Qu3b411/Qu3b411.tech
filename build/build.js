@@ -84,6 +84,11 @@ function build() {
   if (fs.existsSync(xtermSrc)) {
     copyDir(xtermSrc, xtermDest);
   }
+  // Copy vendored libraries (self-hosted; CSP is script-src 'self').
+  const vendorSrc = path.join(srcDir, 'assets', 'vendor');
+  if (fs.existsSync(vendorSrc)) {
+    copyDir(vendorSrc, path.join(docsDir, 'assets', 'vendor'));
+  }
   // Write bundle
   fs.writeFileSync(path.join(docsDir, 'assets/data/content.bundle.json'), JSON.stringify(bundle, null, 2));
   // Create SECURITY_NOTES.json
