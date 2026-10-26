@@ -608,27 +608,24 @@ export class Terminal {
     this.printLine(`ls: cannot access '${target || pathStr}': No such file or directory`);
   }
 
-  // Fetch markdown for file
+  // Fetch markdown for a file, resolving it (relative to cwd, or absolute)
+  // through the same virtual-path mapping the editor uses.
   getMarkdownForFile(file) {
-    // root about
-    if (this.cwdPath === '/' && file === 'about.md') {
-      return this.bundle.aboutMd;
-    }
-    if (this.cwdPath === '/blog') {
-      const vPath = 'blog/' + file;
-      return this.bundle.postMarkdownByVirtualPath[vPath];
-    }
-    if (this.cwdPath === '/.games') {
-      return (this.bundle.games || {})['.games/' + file];
-    }
-    if (file && file.startsWith('/')) {
-      const trimmed = file.replace(/^\//, '');
-      if (trimmed === 'about.md') return this.bundle.aboutMd;
-      if (trimmed.startsWith('.games/')) return (this.bundle.games || {})[trimmed];
-      const vPath = trimmed;
-      return this.bundle.postMarkdownByVirtualPath[vPath];
-    }
-    return undefined;
+    if (!file) return undefined;
+    const vPath = this.getVirtualPath(file);
+    if (vPath === 'about.md') return this.bundle.aboutMd;
+    if (vPath.startsWith('.games/')) return (this.bundle.games || {})[vPath];
+    return this.bundle.postMarkdownByVirtualPath[vPath];
+  }
+
+  // True if the argument names one of the (virtual) directories, so vim/nano
+  // can report "Is a directory" instead of "No such file".
+  isDirectoryPath(file) {
+    if (!file) return false;
+    let p = this.getVirtualPath(file).replace(/\/+$/, '');
+    if (p === '' || p === 'blog' || p === '.games') return true;
+    // A trailing slash on a non-file also reads as a directory attempt.
+    return /\/$/.test(file) && !this.getMarkdownForFile(file);
   }
 
   // Render markdown to plain text for cat (no images)
@@ -688,36 +685,30 @@ export class Terminal {
     return file;
   }
 
-  vim(file) {
+  openEditor(file, mode) {
+    if (!this.openView) return;
+    // Bare `vim` / `nano` opens an empty buffer, like the real editors.
     if (!file) {
-      this.printLine('vim: missing operand');
+      this.openView(null, mode);
       return;
     }
-    const md = this.getMarkdownForFile(file);
-    if (!md) {
-      this.printLine(`vim: ${file}: No such file or directory`);
+    if (this.isDirectoryPath(file)) {
+      this.printLine(`${mode}: ${file}: Is a directory`);
       return;
     }
-    if (this.openView) {
-      const vPath = this.getVirtualPath(file);
-      this.openView(vPath, 'vim');
+    if (!this.getMarkdownForFile(file)) {
+      this.printLine(`${mode}: ${file}: No such file or directory`);
+      return;
     }
+    this.openView(this.getVirtualPath(file), mode);
+  }
+
+  vim(file) {
+    this.openEditor(file, 'vim');
   }
 
   nano(file) {
-    if (!file) {
-      this.printLine('nano: missing operand');
-      return;
-    }
-    const md = this.getMarkdownForFile(file);
-    if (!md) {
-      this.printLine(`nano: ${file}: No such file or directory`);
-      return;
-    }
-    if (this.openView) {
-      const vPath = this.getVirtualPath(file);
-      this.openView(vPath, 'nano');
-    }
+    this.openEditor(file, 'nano');
   }
 
   // Handle unknown command

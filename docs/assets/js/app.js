@@ -44,7 +44,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     postByPath[p.path] = p;
   });
 
-  let vimExitStage = 0; // 0 = idle, 1 = saw ':' awaiting 'q'
+  // Editor state (shared by the vim/nano views).
+  const editor = {
+    mode: null, // 'vim' | 'nano'
+    path: null, // virtual path, or null for an empty [No Name] buffer
+    filename: '',
+    source: '',
+    cmdActive: false, // vim command-line mode
+    cmdBuf: '',
+    lastG: 0,
+    lastZ: 0,
+  };
 
   const terminal = new Terminal({
     containerEl: termContainer,
@@ -76,12 +86,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (view.kind === 'article' || view.kind === 'about') {
       const vp = view.kind === 'about' ? 'about.md' : view.post.path;
       const md = router.getMarkdownForVirtualPath(vp);
-      if (md) {
-        vimExitStage = 0;
+      if (md != null) {
         if (view.kind === 'about') terminal.cd('/');
         // Honor the requested editor (vim/nano); default to vim for SEO and
         // direct URL landings, which carry no explicit editor choice.
-        router.showEditor(view.editor || 'vim', md);
+        enterEditor(view.editor || 'vim', vp);
         return;
       }
     }
@@ -159,16 +168,27 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ---- Callbacks ------------------------------------------------------------
 
-  // Terminal `vim`/`nano <file>` commands.
+  // Terminal `vim`/`nano [file]` commands. A null path is a bare `vim`/`nano`:
+  // an empty [No Name] buffer.
   function openViewCallback(virtualPath, type) {
+    if (virtualPath === null || virtualPath === undefined) return enterEditor(type, null);
     if (postByPath[virtualPath]) return navigate({ kind: 'article', post: postByPath[virtualPath], editor: type });
     if (virtualPath === 'about.md') return navigate({ kind: 'about', editor: type });
-    // Any other file: open the editor without changing the URL.
+    // Any other file (e.g. a .games source): open the editor without a URL change.
     const md = router.getMarkdownForVirtualPath(virtualPath);
-    if (md) {
-      vimExitStage = 0;
-      router.showEditor(type, md);
-    }
+    if (md != null) enterEditor(type, virtualPath);
+  }
+
+  // Open a resolved file (or empty buffer) in the editor and record its state.
+  function enterEditor(mode, vp) {
+    const source = vp ? router.getMarkdownForVirtualPath(vp) || '' : '';
+    editor.mode = mode;
+    editor.path = vp || null;
+    editor.filename = vp ? vp.split('/').pop() : '';
+    editor.source = source;
+    editor.cmdActive = false;
+    editor.cmdBuf = '';
+    router.showEditor(mode, source, editor.filename);
   }
 
   function onPathChange() {
@@ -196,42 +216,158 @@ document.addEventListener('DOMContentLoaded', async () => {
     removePrerender();
   });
 
-  // Editor exit: Vim via :q, Nano via Ctrl+X — return to the terminal (home).
-  // Capture phase so xterm can't swallow the keys first.
+  // Keep the vim status position in sync while scrolling the buffer.
+  vimContent.addEventListener('scroll', () => router.updateVimPos());
+
+  // Editor key handling (capture phase so xterm can't swallow the keys first).
   document.addEventListener(
     'keydown',
     (e) => {
-      if (!vimSurface.hidden) {
-        if (e.key === ':' && !e.ctrlKey && !e.metaKey) {
-          e.preventDefault();
-          vimExitStage = 1;
-          return;
-        }
-        if (vimExitStage === 1 && (e.key === 'q' || e.key === 'Q') && !e.ctrlKey && !e.metaKey) {
-          e.preventDefault();
-          exitEditor();
-          return;
-        }
-        e.preventDefault();
-        e.stopPropagation();
-        return;
-      }
-      if (!nanoSurface.hidden) {
-        if ((e.ctrlKey || e.metaKey) && (e.key === 'x' || e.key === 'X')) {
-          e.preventDefault();
-          e.stopPropagation();
-          exitEditor();
-          return;
-        }
-        e.preventDefault();
-        e.stopPropagation();
-      }
+      if (!vimSurface.hidden) return handleVimKey(e);
+      if (!nanoSurface.hidden) return handleNanoKey(e);
     },
     true
   );
 
+  const vimCmdlineEl = document.getElementById('vimCmdline');
+  const nanoMsgEl = document.getElementById('nanoMsg');
+  const scrollBy = (el, dy) => el.scrollBy({ top: dy });
+
+  function handleVimKey(e) {
+    const el = vimContent;
+    // --- Command-line mode (after ':') ---
+    if (editor.cmdActive) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.key === 'Enter') return runVimCommand(editor.cmdBuf);
+      if (e.key === 'Escape') return endVimCommand();
+      if (e.key === 'Backspace') {
+        if (!editor.cmdBuf) return endVimCommand();
+        editor.cmdBuf = editor.cmdBuf.slice(0, -1);
+        vimCmdlineEl.textContent = ':' + editor.cmdBuf;
+        return;
+      }
+      if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        editor.cmdBuf += e.key;
+        vimCmdlineEl.textContent = ':' + editor.cmdBuf;
+      }
+      return;
+    }
+    // --- Normal mode ---
+    if (e.key === ':' && !e.ctrlKey && !e.metaKey) {
+      e.preventDefault();
+      editor.cmdActive = true;
+      editor.cmdBuf = '';
+      vimCmdlineEl.classList.add('vim-cmd-active');
+      vimCmdlineEl.textContent = ':';
+      return;
+    }
+    const half = el.clientHeight / 2;
+    const page = el.clientHeight * 0.9;
+    const step = 48;
+    if (e.key === 'g' && !e.ctrlKey && !e.metaKey) {
+      e.preventDefault();
+      if (editor.lastG && Date.now() - editor.lastG < 600) { el.scrollTo({ top: 0 }); editor.lastG = 0; }
+      else editor.lastG = Date.now();
+      return;
+    }
+    if (e.key === 'Z') {
+      e.preventDefault();
+      if (editor.lastZ && Date.now() - editor.lastZ < 600) { exitEditor(); editor.lastZ = 0; }
+      else editor.lastZ = Date.now();
+      return;
+    }
+    if (e.ctrlKey && (e.key === 'd' || e.key === 'f')) { e.preventDefault(); scrollBy(el, e.key === 'd' ? half : page); return; }
+    if (e.ctrlKey && (e.key === 'u' || e.key === 'b')) { e.preventDefault(); scrollBy(el, -(e.key === 'u' ? half : page)); return; }
+    const nav = {
+      j: step, ArrowDown: step, k: -step, ArrowUp: -step,
+      ' ': page, PageDown: page, PageUp: -page,
+    };
+    if (e.key === 'G') { e.preventDefault(); el.scrollTo({ top: el.scrollHeight }); return; }
+    if (Object.prototype.hasOwnProperty.call(nav, e.key)) { e.preventDefault(); scrollBy(el, nav[e.key]); return; }
+    if (e.key === 'Home') { e.preventDefault(); el.scrollTo({ top: 0 }); return; }
+    if (e.key === 'End') { e.preventDefault(); el.scrollTo({ top: el.scrollHeight }); return; }
+    // Read-only buffer: swallow other printable keys (no accidental typing).
+    if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.length === 1) e.preventDefault();
+  }
+
+  function endVimCommand() {
+    editor.cmdActive = false;
+    editor.cmdBuf = '';
+    vimCmdlineEl.classList.remove('vim-cmd-active');
+    vimCmdlineEl.textContent = editor.filename ? `"${editor.filename}" [readonly]` : '';
+  }
+
+  function runVimCommand(raw) {
+    const s = raw.trim();
+    editor.cmdActive = false;
+    editor.cmdBuf = '';
+    vimCmdlineEl.classList.remove('vim-cmd-active');
+    const [word, ...rest] = s.split(/\s+/);
+    const arg = rest.join(' ');
+    if (['q', 'q!', 'quit', 'quit!', 'qa', 'qa!', 'quitall'].includes(word)) return exitEditor();
+    if (['wq', 'wq!', 'x', 'x!', 'xit', 'exit'].includes(word)) return exitEditor(); // read-only: just leave
+    if (word === 'w' || word === 'write') { vimCmdlineEl.textContent = "E45: 'readonly' option is set (add ! to override)"; return; }
+    if (word === 'w!' || word === 'write!') { vimCmdlineEl.textContent = `"${editor.filename || '[No Name]'}" written`; return; }
+    if (word === 'e' || word === 'e!' || word === 'edit' || word === 'edit!') {
+      if (!arg) { vimCmdlineEl.textContent = 'E32: No file name'; return; }
+      return openFileFromEditor(arg, 'vim');
+    }
+    if (word === 'help' || word === 'h') { vimCmdlineEl.textContent = 'help: j/k scroll · gg/G top/bottom · :q to exit · qu3b411.tech'; return; }
+    if (!word) return;
+    vimCmdlineEl.textContent = `E492: Not an editor command: ${s}`;
+  }
+
+  // `:e <file>` / editor file open — resolve via the shell (honours cwd).
+  function openFileFromEditor(name, mode) {
+    const target = mode === 'vim' ? vimCmdlineEl : nanoMsgEl;
+    if (terminal.isDirectoryPath(name)) { target.textContent = `"${name}" is a directory`; return; }
+    const src = terminal.getMarkdownForFile(name);
+    if (src == null) { target.textContent = `E484: Can't open file ${name}`; return; }
+    const vp = terminal.getVirtualPath(name);
+    if (postByPath[vp]) return navigate({ kind: 'article', post: postByPath[vp], editor: mode });
+    if (vp === 'about.md') return navigate({ kind: 'about', editor: mode });
+    enterEditor(mode, vp);
+  }
+
+  function handleNanoKey(e) {
+    const el = nanoContent;
+    const ctrl = e.ctrlKey || e.metaKey;
+    if (ctrl && (e.key === 'x' || e.key === 'X')) { e.preventDefault(); e.stopPropagation(); return exitEditor(); }
+    if (ctrl && (e.key === 'c' || e.key === 'C')) {
+      e.preventDefault(); e.stopPropagation();
+      const max = el.scrollHeight - el.clientHeight;
+      const pct = max <= 1 ? 100 : Math.round((el.scrollTop / max) * 100);
+      const lines = editor.source ? editor.source.split(/\r?\n/).length : 0;
+      nanoMsgEl.textContent = `[ buffer: ${lines} lines · ${pct}% ]`;
+      return;
+    }
+    if (ctrl && (e.key === 'g' || e.key === 'G')) {
+      e.preventDefault(); e.stopPropagation();
+      nanoMsgEl.textContent = '[ ^X Exit · ^C Location · arrows/space scroll · read-only preview ]';
+      return;
+    }
+    if (ctrl && 'owktr\\'.includes((e.key || '').toLowerCase())) {
+      e.preventDefault(); e.stopPropagation();
+      nanoMsgEl.textContent = '[ read-only buffer: writing/cut/replace disabled ]';
+      return;
+    }
+    const half = el.clientHeight / 2;
+    const page = el.clientHeight * 0.9;
+    const step = 48;
+    const nav = { ArrowDown: step, ArrowUp: -step, ' ': page, PageDown: page, PageUp: -page };
+    if (Object.prototype.hasOwnProperty.call(nav, e.key)) { e.preventDefault(); e.stopPropagation(); scrollBy(el, nav[e.key]); return; }
+    if (e.key === 'Home') { e.preventDefault(); e.stopPropagation(); el.scrollTo({ top: 0 }); return; }
+    if (e.key === 'End') { e.preventDefault(); e.stopPropagation(); el.scrollTo({ top: el.scrollHeight }); return; }
+    if (!ctrl && !e.altKey && e.key.length === 1) {
+      e.preventDefault(); e.stopPropagation();
+      nanoMsgEl.textContent = '[ This is a read-only preview buffer ]';
+    }
+  }
+
   function exitEditor() {
-    vimExitStage = 0;
+    editor.cmdActive = false;
+    editor.mode = null;
     navigate({ kind: 'home' });
   }
 

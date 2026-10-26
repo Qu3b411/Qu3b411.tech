@@ -95,6 +95,37 @@ function isTableSep(s) {
   return s.includes('|') && tableCells(s).length >= 1 && tableCells(s).every((c) => /^:?-{1,}:?$/.test(c));
 }
 
+// The classic Vim intro screen for an empty buffer: a column of ~ with the
+// splash text centered a third of the way down.
+function buildVimSplash() {
+  const frag = document.createDocumentFragment();
+  const intro = [
+    'VIM - Vi IMproved',
+    '',
+    'version 9.1.qu3 — qu3b411.tech',
+    'the terminal blog editor',
+    '',
+    'type  :q<Enter>          to exit',
+    'type  :help<Enter>       for help',
+    'type  :e <file><Enter>   to open a file',
+  ];
+  const ROWS = 42;
+  const start = Math.floor(ROWS / 3);
+  for (let i = 0; i < ROWS; i++) {
+    const row = document.createElement('div');
+    const introIdx = i - start;
+    if (introIdx >= 0 && introIdx < intro.length) {
+      row.className = 'vim-splash-line';
+      row.textContent = intro[introIdx];
+    } else {
+      row.className = 'vim-tilde-line';
+      row.textContent = '~';
+    }
+    frag.appendChild(row);
+  }
+  return frag;
+}
+
 function markdownToFragment(md, assetBase) {
   const fragment = document.createDocumentFragment();
   const lines = md.split(/\r?\n/);
@@ -258,25 +289,68 @@ export class Router {
   }
 
   // Show a specific editor mode
-  showEditor(mode, markdown) {
+  showEditor(mode, source, filename) {
     if (this.terminalEl) this.terminalEl.classList.add('editor-active');
     this.termContainer.hidden = true;
     this.editorSurface.hidden = false;
 
-    const targetContent = mode === 'vim' ? this.vimContent : this.nanoContent;
-    targetContent.replaceChildren(markdownToFragment(markdown, this.assetBase));
+    const src = source == null ? '' : String(source);
+    const name = filename || '';
 
     if (mode === 'vim') {
       this.nanoSurface.hidden = true;
       this.vimSurface.hidden = false;
+      this.renderVim(src, name);
     } else {
       this.vimSurface.hidden = true;
       this.nanoSurface.hidden = false;
+      this.renderNano(src, name);
     }
-
     // Give the editor surface focus so keyboard shortcuts are reliable.
     // This also helps prevent xterm from stealing focus.
     this.editorSurface.focus();
+  }
+
+  renderVim(src, name) {
+    const empty = !src.trim();
+    this.vimContent.classList.toggle('vim-empty', empty);
+    this.vimContent.replaceChildren(
+      empty ? buildVimSplash() : markdownToFragment(src, this.assetBase)
+    );
+    this.vimContent.scrollTop = 0;
+    const lines = src ? src.split(/\r?\n/).length : 0;
+    const bytes = new TextEncoder().encode(src).length;
+    const left = document.getElementById('vimStatusLeft');
+    const cmd = document.getElementById('vimCmdline');
+    if (left) left.textContent = name ? `"${name}"` : '[No Name]';
+    if (cmd) {
+      cmd.classList.remove('vim-cmd-active');
+      cmd.textContent = name ? `"${name}" [readonly] ${lines}L, ${bytes}B` : '';
+    }
+    this.updateVimPos();
+  }
+
+  // Vim-style position indicator (Top / Bot / All / NN%) in the status line.
+  updateVimPos() {
+    const right = document.getElementById('vimStatusRight');
+    if (!right) return;
+    const el = this.vimContent;
+    const max = el.scrollHeight - el.clientHeight;
+    let pos;
+    if (max <= 1) pos = 'All';
+    else if (el.scrollTop <= 1) pos = 'Top';
+    else if (el.scrollTop >= max - 1) pos = 'Bot';
+    else pos = Math.round((el.scrollTop / max) * 100) + '%';
+    right.textContent = pos;
+  }
+
+  renderNano(src, name) {
+    this.nanoContent.replaceChildren(markdownToFragment(src || '', this.assetBase));
+    this.nanoContent.scrollTop = 0;
+    const f = document.getElementById('nanoTitleFile');
+    const msg = document.getElementById('nanoMsg');
+    if (f) f.textContent = name || 'New Buffer';
+    if (msg) msg.textContent = src ? `[ Read ${src.split(/\r?\n/).length} lines ]` : '[ New File ]';
   }
 
   // Load the current hash state

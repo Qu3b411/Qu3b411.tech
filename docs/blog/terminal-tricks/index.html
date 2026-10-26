@@ -79,21 +79,35 @@
         <!-- Editor surface that replaces the xterm view when in editor modes -->
         <div id="editor-surface" hidden tabindex="0" role="application" aria-label="Editor mode">
           <!-- VIM in-terminal surface -->
-          <div id="vimSurface" hidden class="editor-view">
-            <div class="view-header">VIM <span class="view-hint">Press :q to exit</span></div>
+          <div id="vimSurface" hidden class="editor-view editor-vim">
             <div id="vimContent" class="view-content"></div>
+            <div class="vim-statusline" aria-hidden="true">
+              <span id="vimStatusLeft" class="vim-status-left"></span>
+              <span id="vimStatusRight" class="vim-status-right"></span>
+            </div>
+            <div id="vimCmdline" class="vim-cmdline" aria-live="polite"></div>
           </div>
           <!-- NANO in-terminal surface -->
-          <div id="nanoSurface" hidden class="editor-view">
-            <div class="view-header">NANO <span class="view-hint">Press Ctrl+X to exit</span></div>
+          <div id="nanoSurface" hidden class="editor-view editor-nano">
+            <div class="nano-titlebar" aria-hidden="true">
+              <span class="nano-title-ver">GNU nano 7.2</span>
+              <span id="nanoTitleFile" class="nano-title-file">New Buffer</span>
+              <span id="nanoTitleMod" class="nano-title-mod"></span>
+            </div>
             <div id="nanoContent" class="view-content"></div>
+            <div id="nanoMsg" class="nano-msgline" aria-live="polite"></div>
             <div class="nano-bottom-bar" aria-hidden="true">
-              <span>^G Get Help</span>
-              <span>^O Write Out</span>
-              <span>^W Where Is</span>
-              <span>^K Cut Text</span>
-              <span>^U Uncut Text</span>
-              <span>^X Exit</span>
+              <span><b>^G</b> Help</span>
+              <span><b>^O</b> Write Out</span>
+              <span><b>^W</b> Where Is</span>
+              <span><b>^K</b> Cut</span>
+              <span><b>^T</b> Execute</span>
+              <span><b>^C</b> Location</span>
+              <span><b>^R</b> Read File</span>
+              <span><b>^\</b> Replace</span>
+              <span><b>^U</b> Paste</span>
+              <span><b>^/</b> Go To Line</span>
+              <span><b>^X</b> Exit</span>
             </div>
           </div>
         </div>
