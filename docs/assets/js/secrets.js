@@ -25,11 +25,10 @@ export const SECRETS = {
     'guest:x:1001:1001:,,,:/home/guest:/usr/sbin/nologin',
     'nobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin',
   ],
-  '/etc/shadow': [
-    'root:!:19876:0:99999:7:::',
-    'qu3b411:$6$rounds=656000$[redacted, nice try]:19876:0:99999:7:::',
-    'cat: /etc/shadow: Permission denied',
-  ],
+  // NOTE: /etc/shadow is root-only and NOT stored here as plaintext — it lives
+  // AES-GCM-encrypted in vault.js and is decrypted only with a key derived from
+  // the recovered flag. See vault.js.
+  //
   // The shell history is the real trail: what the owner did on this box.
   '/.bash_history': [
     'ls -la',
@@ -57,34 +56,6 @@ export const SECRETS = {
   ],
 };
 
-// SHA-256 of the correct flag. The flag never appears here in cleartext.
-const FLAG_SHA256 = 'deddbee3604eceb857620575aa06ad6709983d64f62748ea46feff1a4b86ebef';
-
-async function sha256Hex(str) {
-  const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
-  return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, '0')).join('');
-}
-
-// Verify a submitted flag against the stored digest. Returns the unlock payload.
-export async function tryUnlock(raw) {
-  const guess = String(raw || '').trim();
-  if (!guess) return { message: ['unlock: usage: unlock <flag>'], rooted: false };
-  const digest = await sha256Hex(guess);
-  if (digest !== FLAG_SHA256) {
-    return { message: ['unlock: wrong flag. keep digging.'], rooted: false };
-  }
-  return {
-    rooted: true,
-    message: [
-      '',
-      '   ____  ___   ___ _____ ',
-      '  / __ \\/ _ \\ / _ \\_   _|',
-      ' / /_/ / // // // / | |  ',
-      ' \\____/\\___/ \\___/  |_|  ',
-      '',
-      'one gcd and the whole key fell over. two keys, one dead rng. textbook.',
-      'flag accepted. you now have root. (cosmetic. purely for the vibes.)',
-      '',
-    ],
-  };
-}
+// Authentication is handled by vault.js: the recovered flag derives an AES-GCM
+// key that must decrypt the vault. There is deliberately no flag hash or unlock
+// oracle here — "correct" is defined by the content decrypting, nothing weaker.

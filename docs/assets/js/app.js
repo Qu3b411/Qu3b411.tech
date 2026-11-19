@@ -11,6 +11,7 @@
 import { Terminal } from './terminal.js';
 import { Router } from './router.js';
 import { populatePostsDropdown } from './blog.js';
+import { loadState, saveState, saveStateSoon } from './vmstate.js';
 
 // app.js is served at <site-root>/assets/js/app.js, so '../../' from its own URL
 // is the site root — correct regardless of page depth or deploy sub-path.
@@ -62,11 +63,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     nanoSearch: { active: false, buf: '', pattern: '', matches: [], index: -1 },
   };
 
+  // Persistent, browser-local machine state (shell history, writable overlay
+  // filesystem, high scores, and the destroyed/operational flag). The same
+  // object is mutated in place by the terminal and flushed here.
+  const vmState = loadState();
+
   const terminal = new Terminal({
     containerEl: termContainer,
     bundle,
     openViewCallback,
     onPathChange,
+    state: vmState,
+    // `now` forces an immediate, synchronous write (used for destruction and
+    // other must-not-lose transitions); otherwise writes are coalesced.
+    onPersist: (now) => (now ? saveState(vmState) : saveStateSoon(vmState)),
   });
 
   const router = new Router({
@@ -176,13 +186,34 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Terminal `vim`/`nano [file]` commands. A null path is a bare `vim`/`nano`:
   // an empty [No Name] buffer.
-  function openViewCallback(virtualPath, type) {
+  function openViewCallback(virtualPath, type, synthetic) {
+    // A synthetic buffer (directory listing, overlay file) carries its own
+    // name + source and never touches routing.
+    if (synthetic) return enterEditorSynthetic(type, synthetic.name, synthetic.source);
     if (virtualPath === null || virtualPath === undefined) return enterEditor(type, null);
     if (postByPath[virtualPath]) return navigate({ kind: 'article', post: postByPath[virtualPath], editor: type });
     if (virtualPath === 'about.md') return navigate({ kind: 'about', editor: type });
     // Any other file (e.g. a .games source): open the editor without a URL change.
     const md = router.getMarkdownForVirtualPath(virtualPath);
     if (md != null) enterEditor(type, virtualPath);
+  }
+
+  // Open an editor view over caller-supplied content (no file lookup).
+  function enterEditorSynthetic(mode, name, source) {
+    editor.mode = mode;
+    editor.cmdActive = false;
+    editor.cmdBuf = '';
+    editor.ctrlW = false;
+    if (mode === 'vim') {
+      editor.panes = [{ path: null, filename: name, source: source || '', numbers: false }];
+      editor.active = 0;
+      editor.orientation = 'row';
+      router.renderVimPanes(editor);
+    } else {
+      editor.source = source || '';
+      editor.filename = name || '';
+      router.renderNano(editor.source, editor.filename);
+    }
   }
 
   // Open a resolved file (or empty buffer) in the editor and record its state.

@@ -1,8 +1,9 @@
 // snake.js — terminal Snake. Arrows to steer, q / Esc / Ctrl+C to quit.
 // The play field scales to fill the terminal. Exposes { input, stop }.
 
-export function run(term, { onExit } = {}) {
+export function run(term, { onExit, highScore = 0, onScore } = {}) {
   const CSI = '\x1b[';
+  let best = Number(highScore) || 0;
   const W = Math.max(24, Math.min((term.cols || 80) - 2, 90));
   const H = Math.max(12, Math.min((term.rows || 24) - 3, 38));
   const SPEED_MS = 90;
@@ -29,7 +30,7 @@ export function run(term, { onExit } = {}) {
 
   function draw() {
     let out = CSI + '2J' + CSI + 'H\x1b[1;32m';
-    out += ` SNAKE    score ${score}    arrows = move, q = quit\r\n`;
+    out += ` SNAKE    score ${score}    high ${Math.max(best, score)}    arrows = move, q = quit\r\n`;
     for (let y = 0; y < H; y++) {
       let row = '';
       for (let x = 0; x < W; x++) {
@@ -57,7 +58,10 @@ export function run(term, { onExit } = {}) {
   function gameOver() {
     dead = true;
     clearInterval(timer);
-    term.write('\x1b[0m\r\n  GAME OVER — score ' + score + '. Press any key.\r\n');
+    if (onScore) onScore(score);
+    const hi = Math.max(best, score);
+    best = hi;
+    term.write('\x1b[0m\r\n  GAME OVER — score ' + score + ' (high ' + hi + '). Press any key.\r\n');
   }
 
   function input(data) {

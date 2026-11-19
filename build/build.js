@@ -14,6 +14,9 @@ function ensureDir(p) {
 function copyDir(src, dest) {
   ensureDir(dest);
   fs.readdirSync(src, { withFileTypes: true }).forEach((ent) => {
+    // package.json only marks src/js as ES modules for Node tooling/tests; it
+    // is meaningless to the browser and should not ship to docs/.
+    if (ent.name === 'package.json') return;
     const srcPath = path.join(src, ent.name);
     const destPath = path.join(dest, ent.name);
     if (ent.isDirectory()) {
@@ -22,6 +25,22 @@ function copyDir(src, dest) {
       fs.copyFileSync(srcPath, destPath);
     }
   });
+}
+
+// Conservative obfuscation for the shipped authorization/vault module: drop
+// block comments, whole-line comments, indentation, and blank lines. Inline
+// comments and string contents are left untouched (base64 payloads can contain
+// '//'), so the transform cannot corrupt the code.
+function obfuscateFile(file) {
+  if (!fs.existsSync(file)) return;
+  const out = fs
+    .readFileSync(file, 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n')
+    .map((l) => l.replace(/^\s+/, ''))
+    .filter((l) => l && !l.startsWith('//'))
+    .join('\n');
+  fs.writeFileSync(file, out);
 }
 
 function build() {
@@ -70,6 +89,12 @@ function build() {
   // Copy CSS and JS
   copyDir(path.join(srcDir, 'css'), path.join(docsDir, 'assets/css'));
   copyDir(path.join(srcDir, 'js'), path.join(docsDir, 'assets/js'));
+  // Obfuscate the authorization/vault implementation in the shipped bundle:
+  // strip comments, indentation, and blank lines so the privilege mechanism is
+  // tedious to read. The games, filesystem, and CTF clues stay readable. (The
+  // real protection is cryptographic — the vault content is AES-GCM ciphertext —
+  // so this is only a nuisance layer.) No source maps are emitted.
+  obfuscateFile(path.join(docsDir, 'assets/js/vault.js'));
   // Copy images: from content/images and src/assets/images
   const imagesOut = path.join(docsDir, 'assets/images');
   if (fs.existsSync(path.join(contentDir, 'images'))) {

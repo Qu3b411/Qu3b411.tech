@@ -1,7 +1,8 @@
 // asteroids.js — left/right = rotate, up = thrust, space = fire, q = quit.
 // Shoot the rocks; big ones split. Don't fly into one. Clear them all to win.
 
-export function run(term, { onExit } = {}) {
+export function run(term, { onExit, highScore = 0, onScore } = {}) {
+  let best = Number(highScore) || 0;
   const CSI = '\x1b[';
   const W = Math.max(28, Math.min((term.cols || 80) - 2, 80));
   const H = Math.max(14, Math.min((term.rows || 24) - 2, 34));
@@ -69,14 +70,17 @@ export function run(term, { onExit } = {}) {
     const sx = Math.round(ship.x) % W, sy = Math.round(ship.y) % H;
     if (g[sy]) g[sy][sx] = SHIP[heading];
     let out = CSI + '2J' + CSI + 'H\x1b[1;32m';
-    out += ` ASTEROIDS   score ${score}   left/right=turn up=thrust space=fire q=quit\r\n`;
+    out += ` ASTEROIDS   score ${score}   high ${Math.max(best, score)}   left/right=turn up=thrust space=fire q=quit\r\n`;
     out += g.map((row) => row.join('')).join('\r\n');
     term.write(out + '\x1b[0m');
   }
 
   function end() {
     clearInterval(timer);
-    term.write('\x1b[0m\r\n  ' + (won ? 'ALL CLEAR!' : 'GAME OVER') + ' — score ' + score + '. Press any key.\r\n');
+    if (onScore) onScore(score);
+    const hi = Math.max(best, score);
+    best = hi;
+    term.write('\x1b[0m\r\n  ' + (won ? 'ALL CLEAR!' : 'GAME OVER') + ' — score ' + score + ' (high ' + hi + '). Press any key.\r\n');
     over = 'done';
   }
 

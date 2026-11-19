@@ -1,7 +1,8 @@
 // tetris.js — left/right = move, up = rotate, down = soft drop,
 // space = hard drop, q = quit.
 
-export function run(term, { onExit } = {}) {
+export function run(term, { onExit, highScore = 0, onScore } = {}) {
+  let best = Number(highScore) || 0;
   const CSI = '\x1b[';
   const W = 10;
   const H = Math.max(14, Math.min((term.rows || 24) - 3, 20));
@@ -65,7 +66,7 @@ export function run(term, { onExit } = {}) {
     const g = Array.from({ length: H }, (_, y) => board[y].slice());
     cur.cells.forEach(([cx, cy]) => { const x = cur.x + cx, y = cur.y + cy; if (y >= 0 && y < H) g[y][x] = cur.type; });
     let out = CSI + '2J' + CSI + 'H\x1b[1;32m';
-    out += ` TETRIS   score ${score}   lines ${lines}   arrows+space q=quit\r\n`;
+    out += ` TETRIS   score ${score}   lines ${lines}   high ${Math.max(best, score)}   arrows+space q=quit\r\n`;
     out += '  +' + '--'.repeat(W) + '+\r\n';
     for (let y = 0; y < H; y++) {
       out += '  |' + g[y].map((c) => (c ? '[]' : '  ')).join('') + '|\r\n';
@@ -76,7 +77,10 @@ export function run(term, { onExit } = {}) {
 
   function end() {
     clearInterval(timer);
-    term.write('\x1b[0m\r\n  GAME OVER — score ' + score + ', lines ' + lines + '. Press any key.\r\n');
+    if (onScore) onScore(score);
+    const hi = Math.max(best, score);
+    best = hi;
+    term.write('\x1b[0m\r\n  GAME OVER — score ' + score + ', lines ' + lines + ' (high ' + hi + '). Press any key.\r\n');
     over = 'done';
   }
 

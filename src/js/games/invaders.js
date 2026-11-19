@@ -1,7 +1,8 @@
 // invaders.js — Space Invaders. Left/Right = move, space = fire, q = quit.
 // Clear all invaders to win; don't let them reach you or get hit by a bomb.
 
-export function run(term, { onExit } = {}) {
+export function run(term, { onExit, highScore = 0, onScore } = {}) {
+  let best = Number(highScore) || 0;
   const CSI = '\x1b[';
   const W = Math.max(28, Math.min((term.cols || 80) - 2, 64));
   const H = Math.max(16, Math.min((term.rows || 24) - 2, 28));
@@ -73,14 +74,17 @@ export function run(term, { onExit } = {}) {
     bullets.forEach((b) => { if (b.y > 0 && b.y < H - 1) g[b.y][b.x] = '|'; });
     g[H - 2][px] = '^';
     let out = CSI + '2J' + CSI + 'H\x1b[1;32m';
-    out += ` SPACE INVADERS   score ${score}   left/right=move space=fire q=quit\r\n`;
+    out += ` SPACE INVADERS   score ${score}   high ${Math.max(best, score)}   left/right=move space=fire q=quit\r\n`;
     out += g.map((row) => row.join('')).join('\r\n');
     term.write(out + '\x1b[0m');
   }
 
   function end() {
     clearInterval(timer);
-    term.write('\x1b[0m\r\n  ' + (won ? 'YOU WIN!' : 'GAME OVER') + ' — score ' + score + '. Press any key.\r\n');
+    if (onScore) onScore(score);
+    const hi = Math.max(best, score);
+    best = hi;
+    term.write('\x1b[0m\r\n  ' + (won ? 'YOU WIN!' : 'GAME OVER') + ' — score ' + score + ' (high ' + hi + '). Press any key.\r\n');
     over = 'done';
   }
 
