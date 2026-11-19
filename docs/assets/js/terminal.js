@@ -239,6 +239,17 @@ export class Terminal {
       this.game.input(data);
       return;
     }
+    // Pasted/multi-character input arrives as a single onData chunk. Fan it out
+    // one code point at a time so an embedded or trailing newline submits the
+    // line (instead of being ignored) and stray control bytes are dropped
+    // individually — otherwise pasting e.g. the flag with a trailing newline, or
+    // any text containing a control byte, silently discards the entire paste.
+    // Escape sequences (arrow keys etc.) start with ESC and are left intact so
+    // their multi-byte form still matches the handlers below.
+    if (data.length > 1 && data[0] !== '\u001b') {
+      for (const ch of Array.from(data)) this.handleData(ch);
+      return;
+    }
     // A line-read in progress (the su / sudo password prompt) owns input.
     if (this.pending) { this.handlePending(data); return; }
     switch (data) {

@@ -349,6 +349,24 @@ test('password keystrokes are not echoed and feed the buffer', () => {
   assert.strictEqual(t.pending, null, 'prompt cleared after submit');
 });
 
+test('a pasted line (one onData chunk) feeds the password buffer; a trailing newline submits', () => {
+  const t = makeTerm();
+  let submitted = null;
+  t.readLine('Password: ', { echo: false, onSubmit: (l) => { submitted = l; } });
+  // xterm delivers a paste as a single chunk; copying a line usually appends \n.
+  t.handleData('QU3B411{r0ll_y0ur_0wn_rs4_0n_4_fr3sh_vm_g3t_gcd}\n');
+  assert.strictEqual(submitted, 'QU3B411{r0ll_y0ur_0wn_rs4_0n_4_fr3sh_vm_g3t_gcd}',
+    'the whole paste lands in the buffer and the trailing newline submits it');
+  assert.strictEqual(t.pending, null, 'prompt cleared after the pasted submit');
+});
+
+test('the paste fan-out leaves multi-byte escape sequences (arrow keys) intact', () => {
+  const t = makeTerm();
+  t.history = ['ls']; t.historyIndex = -1; t.commandBuffer = '';
+  t.handleData('\u001b[A'); // up arrow is one 3-byte chunk, must not be split
+  assert.strictEqual(t.commandBuffer, 'ls', 'arrow key still recalls history');
+});
+
 test('grantRoot persists the key material (not a boolean) + solved', () => {
   const t = makeTerm();
   t.grantRoot({ key: {}, raw: 'a2V5bWF0ZXJpYWw=' });
